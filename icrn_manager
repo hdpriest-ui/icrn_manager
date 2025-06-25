@@ -1,0 +1,577 @@
+#!/bin/bash
+
+# This script manages the checkout of libraries from a configured central repository
+# this script leverages 'update_r_libs.sh'
+
+# [[ $_ != $0 ]] && return
+
+# check for existence of needed tools
+if [ -z jq ]; then
+    echo "Need tool jq installed to proceed."
+    exit 1
+fi
+
+icrn_base=".icrn"
+icrn_libs="icrn_libraries"
+central_catalog_default="/u/hdpriest/icrn_temp_repository"
+
+ICRN_USER_BASE=${ICRN_USER_BASE:-${HOME}/${icrn_base}}
+ICRN_MANAGER_CONFIG=${ICRN_MANAGER_CONFIG:-${ICRN_USER_BASE}/manager_config.json}
+ICRN_USER_LIBRARY_BASE=${ICRN_USER_LIBRARY_BASE:-${ICRN_USER_BASE}/${icrn_libs}}
+ICRN_USER_CATALOG=${ICRN_USER_CATALOG:-${ICRN_USER_LIBRARY_BASE}/user_catalog.json}
+
+if [ ! -e ${ICRN_MANAGER_CONFIG} ]; then
+    # if manager config json doesn't exist, we need to be in the 'init' call
+    if [ ! "$2"="init" ]; then
+        echo "You must run 'icrn_manager libraries init' prior to leveraging this tool."
+        exit 1
+    fi
+    # if the config doesn't exist, it will be created and populated during the init call
+    ICRN_LIBRARY_REPOSITORY=$central_catalog_default
+    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/r_libraries"
+    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/icrn_catalogue.json"
+else
+    ICRN_LIBRARY_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_libraries\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/"$(jq -r ".\"icrn_catalog\"" "${ICRN_MANAGER_CONFIG}")
+    if [ -z ${ICRN_LIBRARY_REPOSITORY} ] || [ -z ${ICRN_LIBRARIES} ] || [ -z ${ICRN_LIBRARY_CATALOG} ] ; then
+        echo "Problem with determining central library information - please check user manager config at ${ICRN_MANAGER_CONFIG}"
+        echo "ICRN Library base: ${ICRN_LIBRARY_REPOSITORY}"
+        echo "ICRN Libraries location:  ${ICRN_LIBRARIES}"
+        echo "ICRN catalog location: ${ICRN_LIBRARY_CATALOG}"
+        exit 1
+    fi
+fi
+
+
+
+confirm() {
+    local challenge=$1; shift
+    # call with a prompt string or use a default
+    # https://stackoverflow.com/questions/3231804/in-bash-how-to-add-are-you-sure-y-n-to-any-command-or-alias
+    read -r -p "${challenge:-Are you sure? [y/N]} " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
+    then
+        return 0
+    else
+        echo "Exiting..."
+        exit 0
+    fi
+}
+
+last_check=-1
+check_for_catalog_entry() 
+{
+    local catalog=$1; shift
+    local targetname=$1; shift
+    if [ ! -z $1 ]; then
+        local targetversion=$1; shift
+    fi
+    
+    if [ ! "$(jq -r ".\"$targetname\"" "$catalog")" = "null" ]; then
+        if [ ! -z $targetversion ]; then
+            # we expect to find version if its provided
+            if [ ! "$(jq -r ".\"$targetname\".\"$targetversion\"" $catalog)" = "null" ]; then
+                last_check=1
+            else
+                echo "Found library for $targetname"
+                echo "Could not find version: $targetversion"
+                last_check=0
+            fi
+        else
+            last_check=1
+        fi
+    else
+        # no target found
+        echo "Checking for catalog entry failed for: $targetname"
+        echo "Checked catalog: $catalog"
+        last_check=0
+    fi
+}
+
+get_versions_for_package() 
+{
+    local catalog=$1; shift
+    local targetname=$1; shift
+    
+    check_for_catalog_entry $catalog $targetname
+    if [ $last_check = 0 ]; then
+        echo "$targetname not present in catalog at $catalog"
+        exit 1
+    else
+        last_check=-1
+    fi
+
+    available_versions=$(jq -r ".\"$targetname\"| keys[]" "$catalog")
+    echo "Available versions for $targetname:"
+    echo $available_versions
+}
+
+function libraries__available() # get a list of available libraries from the central repo
+{
+    icrn_catalog=${ICRN_LIBRARY_CATALOG}
+    echo "Available libraries in ICRN catalog ($icrn_catalog):"
+    libraries=$(jq -r '. | keys[]' $icrn_catalog)
+    echo -e "Library\tVersion"
+    for lib in $libraries; do
+        versions=$(jq -r ".$lib | keys[]" $icrn_catalog)
+        for version in $versions; do
+            echo -e $lib"\t"$version
+        done
+    done
+}
+function libraries__avail() # alias for available
+{
+    libraries__available "$@"
+}
+
+function libraries__list() # get the list of libraries already checked out and ready for use
+{
+    user_catalogue=${ICRN_USER_CATALOG}
+    echo "checked out libraries in in user catalog (${ICRN_USER_CATALOG}):"
+    libraries=$(jq -r '. | keys[]' $user_catalogue)
+    echo -e "Library\tVersion"
+    for lib in $libraries; do
+        versions=$(jq -r ".$lib | keys[]" $user_catalogue)
+        for version in $versions; do
+            echo -e $lib"\t"$version
+        done
+    done
+}
+
+function libraries__use() # use a library which is already checked out
+{
+    local targetname=$1; shift
+    local version=$1; shift
+
+    local target_r_environ_file=${HOME}"/.Renviron"
+    local target_r_libs_script="./update_r_libs.sh"
+
+    if [ "$targetname" = "none" ]; then
+        echo "Desired library: none"
+    elif [ -z $version ] || [ -z $targetname ]; then
+        echo "usage: icrn_manager libraries use <library name> <version number>"
+        help
+        exit 1
+    else
+        echo "Desired library:"
+        echo "Library: "$targetname
+        echo "Version: "$version
+    fi
+
+    icrn_catalog=${ICRN_LIBRARY_CATALOG}
+    user_catalogue=${ICRN_USER_CATALOG}
+    # add in checking for various needed entities
+    # TODO: convert this to using the library-checking methods above
+    if [ "$targetname" = "none" ]; then
+        echo "Removing preconfigured libraries from R..."
+        ${target_r_libs_script} ${target_r_environ_file}
+    else
+        target_library_link_path=${ICRN_USER_LIBRARY_BASE}/${targetname}
+        absolute_path=$(jq -r ".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalogue)
+        echo "checking for: "$absolute_path
+        if [ -e "$target_library_link_path" ]; then
+            echo "Found existing link; removing..."
+            echo "$target_library_link_path"
+            rm -f "$target_library_link_path"
+        fi
+        if [ -d "$absolute_path" ]; then
+            echo "Found. Linking and Activating..."
+            ln -s $absolute_path $target_library_link_path 
+            ${target_r_libs_script} ${target_r_environ_file} $targetname
+            echo "Done."
+        else
+            echo "Path could not be found. There is a problem with your user catalogue."
+            echo "Consider cleaning the entry in your catalog via: ./icrn_manager libraries clean $targetname $version"
+            echo "And then checking out the library again."
+            exit 1
+        fi
+    fi
+}
+
+function libraries__activate() # alias for use
+{
+    "libraries__use" "$@"
+}
+
+function libraries__get() # get a library from the central repo
+{
+    local targetname=$1; shift
+    local version=$1; shift
+
+    if [ -z $version ] || [ -z $targetname ]; then
+        echo "usage: icrn_manager libraries get <library name> <version number>"
+        help
+        exit 1
+    else
+        echo "Desired library:"
+        echo "Library: "$targetname
+        echo "Version: "$version
+        
+    fi
+    icrn_catalog=${ICRN_LIBRARY_CATALOG}
+    user_catalog=${ICRN_USER_CATALOG}
+    echo ""
+    echo "ICRN Catalog:"
+    echo $icrn_catalog
+    echo "User Catalog:"
+    echo $user_catalog
+    echo ""
+    # jqstring=".$targetname.\"$version\".\"conda-pack\""
+    # todo:
+    # add test: is the targetname valid?
+    # add test: is the version number valid?
+    # TODO: convert this to using the library-checking methods above
+    # get the target file from the ICRN catalog
+    target_file=$(jq -r ".$targetname.\"$version\".\"conda-pack\"" $icrn_catalog)
+    if [ ! "$target_file" = "null" ]; then
+        pack_filepath=${ICRN_LIBRARIES}/$targetname/$version/$target_file
+        if [ -e $pack_filepath ]; then
+            # identify target location, make it if it doesn't exist, and then unpack to it
+            target_unpacked=${ICRN_USER_LIBRARY_BASE}/$targetname-$version/
+            if [ ! -d $target_unpacked ]; then
+                echo "Making target directory: $target_unpacked"
+                mkdir -p $target_unpacked
+                echo "Checking out library..."
+                tar -xzf $pack_filepath -C $target_unpacked
+            else
+                echo "WARNING: target directory: $target_unpacked already exists!"
+                echo "Overwriting existing files from packed library..."
+                tar -xzf $pack_filepath -U -C $target_unpacked
+                echo "Note that this risks leaving this library in an intermediate state."
+                echo "It is recommended that you remove the library entirely by running:"
+                echo "'rm -rf $target_unpacked'"
+            fi
+        else
+            echo "ERROR: could not find target pack file: $pack_filepath"
+        fi
+    else
+        echo "ERROR: could not find target library to get"
+        get_versions_for_package "$icrn_catalog" "$targetname"
+        exit 1
+    fi
+    # activate conda env
+    # unpack conda env
+    echo checking for: $target_unpacked"/bin/activate"
+    if [ -e $target_unpacked"bin/activate" ]; then
+        echo "activating environment"
+        source $target_unpacked"bin/activate"
+        echo "doing unpack"
+        conda-unpack
+        # WARNING: this is weak - relies on preparer and environment ensuring this is top slot
+        # --vanilla ensures that we aren't interpreting an existing library-fu environment variable
+        # we want to get a very plain readout of where this R install's main library is.
+        echo "getting R path."
+        target_library_path=$(Rscript --vanilla -e 'cat(.libPaths()[1])')
+        echo "determined: $target_library_path"
+        echo "deactivating"
+        source $target_unpacked"/bin/deactivate"
+        # not doing this step: just because a user wants to get an env, doesn't mean they want to over-ride their current setting for that env
+        # echo "updating environment"
+        # ln -s $target_unpacked ${ICRN_USER_LIBRARY_BASE}/$targetname 
+    
+        echo "Updating user's catalog with $targetname and $version"
+        user_catalog_tmp=$(mktemp)
+        jq -r ".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_library_path\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        # Add in a conda freeze ability to populate "manifest":[] with list of packages within lib
+        # or maybe a R-namespace function via Rscript (like above) to get the R-packages, since this is currently an R package manager
+
+        # yeah we actually shouldn't do this yet - maybe just get the thing, don't activate it
+        # ./update_r_libs.sh ~/.Renviron $targetname
+        echo "Done."
+        echo ""
+        echo "Be sure to call \"./icrn_manager libraries use $targetname $version\" to begin using this library in R."
+    fi
+}
+
+function libraries__update() # update users copy of a library from central repo
+{
+    echo "entered 'update' subcommand"
+    echo "method not yet implemented."
+    exit 1
+    # check for target version in central
+    # check for target version in user's
+    # if both present
+    # remove users
+    # get target from central
+    
+}
+
+function libraries__clean() # remove a library entry from the users catalog
+{
+    local targetname=$1; shift
+    local version=$1; shift
+
+    icrn_catalog=${ICRN_LIBRARY_CATALOG}
+    user_catalog=${ICRN_USER_CATALOG}
+    echo ""
+    echo "ICRN Catalog:"
+    echo $icrn_catalog
+    echo "User Catalog:"
+    echo $user_catalog
+    echo ""
+
+
+    if [ -z "$version" ] && [ -z "$targetname" ]; then
+        echo "usage: icrn_manager libraries clean <library name> <version number>"
+        help
+        exit 1
+    else
+        echo "Desired library to scrub from user catalog:"
+        echo "Library: "$targetname
+        echo "Version: "$version
+        echo ""
+    fi
+    check_for_catalog_entry "$user_catalog" "$targetname"
+    if [ $last_check = 0 ]; then
+        echo "$targetname not present in user catalog at $user_catalog"
+        exit 1
+    else
+        last_check=-1
+    fi
+
+    if [ -z "$version" ]; then
+        user_catalog_tmp=$(mktemp) && \
+        jq -r "del(.\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+
+    else
+        check_for_catalog_entry "$user_catalog" "$targetname" "$version"
+        if [ $last_check = 0 ]; then
+            echo "$version for $targetname not present in user catalog at $user_catalog"
+            get_versions_for_package $user_catalog $targetname
+            exit 1
+        else
+            last_check=-1
+        fi
+        user_catalog_tmp=$(mktemp) && \
+        jq -r "del(.\"$targetname\".\"$version\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        if [ $(jq -r ".\"$targetname\"" "$user_catalog") = "{}" ]; then
+            # if the removal of that version of $targetname results in there being no versions of targetname, remove the entire key.
+            user_catalog_tmp=$(mktemp) && \
+            jq -r "del(.\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        fi
+
+    fi
+
+    # confirm "Removing: $targetname - $version :
+
+    # Are you sure? [Y/n]" && \
+    # user_catalog_tmp=$(mktemp) && \
+    # jq -r "del(.\"$targetname\".\"$version\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+    # if [ $(jq -r ".\"$targetname\"" "$user_catalog") = "{}" ]; then
+    #     # if the removal of that version of $targetname results in there being no versions of targetname, remove the entire key.
+    #     user_catalog_tmp=$(mktemp) && \
+    #     jq -r "del(.\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+    # fi
+    # check for existence of library in user catalogue
+    # 
+}
+
+function libraries__remove() # remove a users copy of a library
+{
+    local targetname=$1; shift
+    local version=$1; shift
+
+    icrn_catalog=${ICRN_LIBRARY_CATALOG}
+    user_catalog=${ICRN_USER_CATALOG}
+    echo ""
+    echo "ICRN Catalog:"
+    echo $icrn_catalog
+    echo "User Catalog:"
+    echo $user_catalog
+    echo ""
+
+    if [ -z $version ] || [ -z $targetname ]; then
+        help
+        echo ""
+        echo "Can't proceed without both a target library and version."
+        echo "usage: icrn_manager libraries remove <library name> <version number>"
+        echo ""
+        exit 1
+    else
+        echo "Desired library to scrub from user catalog:"
+        echo "Library: "$targetname
+        echo "Version: "$version
+        echo ""
+    fi
+    check_for_catalog_entry "$user_catalog" "$targetname" "$version"
+    if [ $last_check = 0 ]; then
+        echo "$targetname and $version not present in user catalog at $user_catalog"
+        get_versions_for_package $user_catalog $targetname
+        exit 1
+    else
+        last_check=-1
+    fi
+    echo "Removing package files, and library entries for: $@"
+    confirm "Are you sure? [Y/n]"
+    target_unpacked=${ICRN_USER_LIBRARY_BASE}/$targetname-$version/
+    if [ -e $target_unpacked ]; then
+        echo "would remove: $target_unpacked"
+        echo "via:"
+        echo "rm -rf $target_unpacked "
+    else
+        echo "Could not locate $target_unpacked - exiting..."
+        exit 1
+    fi
+    libraries__clean "$targetname" "$version"
+}
+
+function libraries__init() # create base resources
+{
+    echo "Initializing icrn library resources..."
+    local central_repository=$1; shift
+    if [ -z $central_repository ]; then
+        central_repository=${central_catalog_default}
+    fi
+    echo ""
+    echo "central catalogue location will be: ${central_repository}"
+    echo ""
+    # check for existence of 
+    #~{HOME}/.icrn/
+    #~{HOME}/.icrn/icrn_libraries/
+    #~{HOME}/.icrn/user_catalogue.json
+    echo "Checking for user resources, and creating them if they don't exist..."
+    if [ ! -e ${ICRN_USER_BASE}/ ]; then
+        echo "creating ${ICRN_USER_BASE}/"
+        mkdir -p ${ICRN_USER_BASE}
+    else
+        echo "base icrn directory exists at ${ICRN_USER_BASE}/"
+    fi
+    if [ ! -e ${ICRN_USER_LIBRARY_BASE} ]; then
+        echo "creating ${ICRN_USER_LIBRARY_BASE}"
+        mkdir -p ${ICRN_USER_LIBRARY_BASE}
+    else
+        echo "base icrn library exists at ${ICRN_USER_LIBRARY_BASE}"
+    fi
+    if [ ! -e ${ICRN_USER_CATALOG} ]; then
+        echo "creating ${ICRN_USER_CATALOG}"
+        echo "{}" > ${ICRN_USER_CATALOG}
+    else
+        echo "base icrn user catalogue exists at ${ICRN_USER_CATALOG}"
+    fi
+
+    # Manager config is json, holds location of the central repo (for now), and sub-paths
+    # user calls ./icrn_manager libraries init <path to central repo>
+    # or omits path, and central repo is defaulted to value above
+    # regardless, config must be written in the user's ICRN location for future reference
+    # user may edit config to repoint to new central repo
+    ICRN_MANAGER_CONFIG=${ICRN_MANAGER_CONFIG:-${ICRN_USER_BASE}/manager_config.json}
+    if [ ! -e ${ICRN_MANAGER_CONFIG} ]; then
+        echo "creating ${ICRN_MANAGER_CONFIG}"
+        echo "{
+        \"icrn_central_catalog_path\": \"${central_repository}\",
+        \"icrn_r_libraries\": \"r_libraries\",
+        \"icrn_catalog\": \"icrn_catalogue.json\"
+        }" > $ICRN_MANAGER_CONFIG
+        # non-append enables re-pointing of central repo via 'init' later
+    else
+        echo "Configuration for manager exists at ${ICRN_MANAGER_CONFIG}"
+    fi
+    echo ""
+    ICRN_LIBRARY_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_libraries\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/"$(jq -r ".\"icrn_catalog\"" "${ICRN_MANAGER_CONFIG}")
+
+    echo "Checking for ICRN resources..."
+    if [ ! -e ${ICRN_LIBRARY_REPOSITORY} ]; then
+        echo "Warning: Cannot find core library base directory at: $ICRN_LIBRARY_REPOSITORY"
+    else
+        echo "Found core library base directory: $ICRN_LIBRARY_REPOSITORY"
+    fi
+    if [ ! -e ${ICRN_LIBRARIES} ]; then
+        echo "Warning: Cannot find core library R root at: $ICRN_LIBRARIES" 
+    else
+        echo "Found core library R root: $ICRN_LIBRARIES"
+    fi   
+    if [ ! -e ${ICRN_LIBRARY_CATALOG} ]; then
+        echo "Warning: Cannot find core library catalog at: $ICRN_LIBRARY_CATALOG"
+    else
+        echo "Found core library catalog at: $ICRN_LIBRARY_CATALOG"
+    fi
+    echo "Done."
+    echo ""
+}
+
+function libraries() # launcher
+{
+    local cmdname=$1; shift
+    if [ $cmdname = "remove" ]; then
+        libraries__remove "$@"
+    elif [ $cmdname = "clean" ]; then
+        echo "Removing library entries for : $@"
+        confirm "Are you sure? [Y/n]"
+        libraries__clean "$@"
+    elif [ ! -z "$(grep 'function libraries__'${cmdname} $0)" ]; then
+        "libraries__$cmdname" "$@"
+    else
+        echo ""
+        echo Error: $cmdname is not a valid subfunction name.
+        echo ""
+        help
+        exit 1
+    fi
+
+}
+
+function help() # Show a list of functions
+{
+    # grep "^function" $0
+    echo ""
+    echo "usage: "
+    echo " $0 libraries <subcommand>"
+    echo "    init"
+    echo "    update"
+    echo "    list"
+    echo "    available"
+    echo "    get <library> <version>"
+    echo "    remove"
+    echo "    use <library> <version>"
+    echo " "
+    echo " "
+}
+
+# check for valid function
+if declare -f "$1" >/dev/null 2>&1; then
+    if [ ! "$2"="init" ]; then
+        environment_error=false
+        if [ ! -e "$ICRN_USER_CATALOG" ]; then
+            echo "Couldn't locate user catalog at:"
+            echo "$ICRN_USER_CATALOG"
+            echo "Did you run `./icrn_manager libraries init`?"
+            environment_error=true
+        fi
+        if [ ! -e "$ICRN_LIBRARY_CATALOG" ]; then
+            echo "Couldn't locate ICRN's central catalog at:"
+            echo "$ICRN_LIBRARY_CATALOG"
+            echo "Please contact support."
+            environment_error=true
+        fi
+        if [ ! -e "$ICRN_USER_BASE" ]; then
+            echo "Couldn't locate user's ICRN base directory:"
+            echo "$ICRN_USER_BASE"
+            echo "Did you run `./icrn_manager libraries init`?"
+            environment_error=true
+        fi
+        if [ ! -e "$ICRN_USER_LIBRARY_BASE" ]; then
+            echo "Couldn't locate user's ICRN Library base directory:"
+            echo "$ICRN_USER_LIBRARY_BASE"
+            echo "Did you run `./icrn_manager libraries init`?"
+            environment_error=true
+        fi
+        if [ ! -e "$ICRN_LIBRARY_REPOSITORY" ]; then
+            echo "Couldn't locate the ICRN library repository:"
+            echo "$ICRN_LIBRARY_REPOSITORY"
+            echo "Please contact support."
+            environment_error=true
+        fi
+        if [ "$environment_error" = true ]; then
+            echo "Encountered one or more environment variable errors."
+            echo "Cannot continue until errors are resolved."
+        fi
+    fi
+    "$@" 
+else
+  echo "Function $1 not recognized" >&2
+  help
+  exit 1
+fi

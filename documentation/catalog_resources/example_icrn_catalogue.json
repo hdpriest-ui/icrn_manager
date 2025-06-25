@@ -1,0 +1,26 @@
+{
+    "vctrs":{
+            "1.0":{
+                    "conda-pack":"R_vctrs.conda.pack.tar.gz",
+                    "manifest": ""
+            }
+    },
+    "cowsay":{
+            "1.0":{
+                    "conda-pack":"R_cowsay.conda.pack.tar.gz",
+                    "manifest": ""
+            }
+    },
+    "mixRF":{
+            "1.0":{
+                    "conda-pack":"mixRF.tar.gz",
+                    "manifest": ""
+            }
+    },
+    "pecan":{
+            "1.9":{
+                    "conda-pack":"PEcAn-base-3.tar.gz",
+                    "manifest": ""
+            }
+    }
+}
