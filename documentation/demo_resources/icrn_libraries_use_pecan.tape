@@ -1,5 +1,5 @@
 # Where should we write the GIF?
-Output icrn_libraries_use_pecan_test.gif
+Output icrn_libraries_use_pecan.gif
 
 # Set up a 1200x600 terminal with 46px font.
 Set FontSize 18 
@@ -23,7 +23,7 @@ Sleep 1s
 Type "./icrn_manager libraries use pecan 1.9"
 Enter
 Sleep 1s
-Type "# I can now use pecan..."
+Type "# I can now use pecan!"
 Enter
 Sleep 1s
 Type "Rscript -e 'library(PEcAn.workflow)'"
