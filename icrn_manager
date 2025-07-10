@@ -13,7 +13,7 @@ fi
 
 icrn_base=".icrn"
 icrn_libs="icrn_libraries"
-central_catalog_default="/u/hdpriest/icrn_temp_repository"
+central_catalog_default="/sw/icrn/jupyter/icrn_ncsa_resources/Kernels"
 
 ICRN_USER_BASE=${ICRN_USER_BASE:-${HOME}/${icrn_base}}
 ICRN_MANAGER_CONFIG=${ICRN_MANAGER_CONFIG:-${ICRN_USER_BASE}/manager_config.json}
@@ -28,12 +28,12 @@ if [ ! -e ${ICRN_MANAGER_CONFIG} ]; then
     fi
     # if the config doesn't exist, it will be created and populated during the init call
     ICRN_LIBRARY_REPOSITORY=$central_catalog_default
-    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/r_libraries"
-    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/icrn_catalogue.json"
+    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/R"
+    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/icrn_kernel_catalogue.json"
 else
     ICRN_LIBRARY_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
-    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_libraries\"" "${ICRN_MANAGER_CONFIG}")
-    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/"$(jq -r ".\"icrn_catalog\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_kernels\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/"$(jq -r ".\"icrn_kernel_catalog\"" "${ICRN_MANAGER_CONFIG}")
     if [ -z ${ICRN_LIBRARY_REPOSITORY} ] || [ -z ${ICRN_LIBRARIES} ] || [ -z ${ICRN_LIBRARY_CATALOG} ] ; then
         echo "Problem with determining central library information - please check user manager config at ${ICRN_MANAGER_CONFIG}"
         echo "ICRN Library base: ${ICRN_LIBRARY_REPOSITORY}"
@@ -420,8 +420,12 @@ function libraries__init() # create base resources
 {
     echo "Initializing icrn library resources..."
     local central_repository=$1; shift
+    overwrite=""
     if [ -z $central_repository ]; then
         central_repository=${central_catalog_default}
+    else
+	echo "will overwrite location"
+	overwrite="yes"
     fi
     echo ""
     echo "central catalogue location will be: ${central_repository}"
@@ -460,17 +464,24 @@ function libraries__init() # create base resources
         echo "creating ${ICRN_MANAGER_CONFIG}"
         echo "{
         \"icrn_central_catalog_path\": \"${central_repository}\",
-        \"icrn_r_libraries\": \"r_libraries\",
-        \"icrn_catalog\": \"icrn_catalogue.json\"
+        \"icrn_r_kernels\": \"R\",
+        \"icrn_python_kernels\": \"Python\",
+	\"icrn_kernel_catalog\": \"icrn_kernel_catalogue.json\"
         }" > $ICRN_MANAGER_CONFIG
         # non-append enables re-pointing of central repo via 'init' later
     else
         echo "Configuration for manager exists at ${ICRN_MANAGER_CONFIG}"
     fi
     echo ""
+    if [ -n overwrite ]; then
+	echo "Updating location of central catalog to: $central_repository"
+        user_catalog_tmp=$(mktemp)
+        jq -r ".\"icrn_central_catalog_path\"=\"$central_repository\"" "${ICRN_MANAGER_CONFIG}" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "${ICRN_MANAGER_CONFIG}"
+    fi 
+    echo ""
     ICRN_LIBRARY_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
-    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_libraries\"" "${ICRN_MANAGER_CONFIG}")
-    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/"$(jq -r ".\"icrn_catalog\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_kernels\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/"$(jq -r ".\"icrn_kernel_catalog\"" "${ICRN_MANAGER_CONFIG}")
 
     echo "Checking for ICRN resources..."
     if [ ! -e ${ICRN_LIBRARY_REPOSITORY} ]; then
