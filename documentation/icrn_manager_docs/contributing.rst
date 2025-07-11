@@ -3,6 +3,8 @@ Contributing
 
 We welcome contributions to the Illinois Computes Library & Kernel Manager project!
 
+The source code and latest updates are available on GitHub: `hdpriest-ui/icrn_manager <https://github.com/hdpriest-ui/icrn_manager>`_
+
 How to Contribute
 -----------------
 - Report bugs or request features via the issue tracker.
