@@ -11,10 +11,10 @@ Set TypingSpeed 20ms
 Type "# RBioconductor is a very large R library which can take hours to install..."
 Enter
 Sleep 1s
-Type "./icrn_manager libraries get Rbioconductor 3.20"
+Type "# this will take a few minutes..."
 Enter
 Sleep 1s
-Type "# wait for it... (this takes about a few minutes)"
+Type "./icrn_manager libraries get Rbioconductor 3.20"
 Enter
 Sleep 240s
 Type "# I've checked out this R kernel, now, i need to use it."
@@ -31,5 +31,5 @@ Enter
 Sleep 2s
 Type "Rscript -e 'library(edgeR)'"
 Enter
-Sleep 2s
+Sleep 10s
 
