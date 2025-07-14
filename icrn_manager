@@ -29,7 +29,7 @@ if [ ! -e ${ICRN_MANAGER_CONFIG} ]; then
     # if the config doesn't exist, it will be created and populated during the init call
     ICRN_LIBRARY_REPOSITORY=$central_catalog_default
     ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/R"
-    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/icrn_kernel_catalogue.json"
+    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/icrn_kernel_catalog.json"
 else
     ICRN_LIBRARY_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
     ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_kernels\"" "${ICRN_MANAGER_CONFIG}")
@@ -127,12 +127,12 @@ function libraries__avail() # alias for available
 
 function libraries__list() # get the list of libraries already checked out and ready for use
 {
-    user_catalogue=${ICRN_USER_CATALOG}
+    user_catalog=${ICRN_USER_CATALOG}
     echo "checked out libraries in in user catalog (${ICRN_USER_CATALOG}):"
-    libraries=$(jq -r '. | keys[]' $user_catalogue)
+    libraries=$(jq -r '. | keys[]' $user_catalog)
     echo -e "Library\tVersion"
     for lib in $libraries; do
-        versions=$(jq -r ".$lib | keys[]" $user_catalogue)
+        versions=$(jq -r ".$lib | keys[]" $user_catalog)
         for version in $versions; do
             echo -e $lib"\t"$version
         done
@@ -160,7 +160,7 @@ function libraries__use() # use a library which is already checked out
     fi
 
     icrn_catalog=${ICRN_LIBRARY_CATALOG}
-    user_catalogue=${ICRN_USER_CATALOG}
+    user_catalog=${ICRN_USER_CATALOG}
     # add in checking for various needed entities
     # TODO: convert this to using the library-checking methods above
     if [ "$targetname" = "none" ]; then
@@ -168,7 +168,7 @@ function libraries__use() # use a library which is already checked out
         ${target_r_libs_script} ${target_r_environ_file}
     else
         target_library_link_path=${ICRN_USER_LIBRARY_BASE}/${targetname}
-        absolute_path=$(jq -r ".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalogue)
+        absolute_path=$(jq -r ".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalog)
         echo "checking for: "$absolute_path
         if [ -e "$target_library_link_path" ]; then
             echo "Found existing link; removing..."
@@ -181,7 +181,7 @@ function libraries__use() # use a library which is already checked out
             ${target_r_libs_script} ${target_r_environ_file} $targetname
             echo "Done."
         else
-            echo "Path could not be found. There is a problem with your user catalogue."
+            echo "Path could not be found. There is a problem with your user catalog."
             echo "Consider cleaning the entry in your catalog via: ./icrn_manager libraries clean $targetname $version"
             echo "And then checking out the library again."
             exit 1
@@ -363,7 +363,7 @@ function libraries__clean() # remove a library entry from the users catalog
     #     user_catalog_tmp=$(mktemp) && \
     #     jq -r "del(.\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
     # fi
-    # check for existence of library in user catalogue
+    # check for existence of library in user catalog
     # 
 }
 
@@ -428,12 +428,12 @@ function libraries__init() # create base resources
 	overwrite="yes"
     fi
     echo ""
-    echo "central catalogue location will be: ${central_repository}"
+    echo "central catalog location will be: ${central_repository}"
     echo ""
     # check for existence of 
     #~{HOME}/.icrn/
     #~{HOME}/.icrn/icrn_libraries/
-    #~{HOME}/.icrn/user_catalogue.json
+    #~{HOME}/.icrn/user_catalog.json
     echo "Checking for user resources, and creating them if they don't exist..."
     if [ ! -e ${ICRN_USER_BASE}/ ]; then
         echo "creating ${ICRN_USER_BASE}/"
@@ -451,7 +451,7 @@ function libraries__init() # create base resources
         echo "creating ${ICRN_USER_CATALOG}"
         echo "{}" > ${ICRN_USER_CATALOG}
     else
-        echo "base icrn user catalogue exists at ${ICRN_USER_CATALOG}"
+        echo "base icrn user catalog exists at ${ICRN_USER_CATALOG}"
     fi
 
     # Manager config is json, holds location of the central repo (for now), and sub-paths
@@ -466,7 +466,7 @@ function libraries__init() # create base resources
         \"icrn_central_catalog_path\": \"${central_repository}\",
         \"icrn_r_kernels\": \"R\",
         \"icrn_python_kernels\": \"Python\",
-	\"icrn_kernel_catalog\": \"icrn_kernel_catalogue.json\"
+	\"icrn_kernel_catalog\": \"icrn_kernel_catalog.json\"
         }" > $ICRN_MANAGER_CONFIG
         # non-append enables re-pointing of central repo via 'init' later
     else
