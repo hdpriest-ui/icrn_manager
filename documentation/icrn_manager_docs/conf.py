@@ -1,7 +1,7 @@
 # Configuration file for the Sphinx documentation builder.
 
 project = 'Illinois Computes Library & Kernel Manager'
-copyright = '2024 University of Illinois'
+copyright = '2025 University of Illinois'
 author = 'ICRN Team'
 
 extensions = [
