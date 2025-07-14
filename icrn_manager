@@ -262,7 +262,7 @@ function libraries__get() # get a library from the central repo
         # --vanilla ensures that we aren't interpreting an existing library-fu environment variable
         # we want to get a very plain readout of where this R install's main library is.
         echo "getting R path."
-        target_library_path=$(Rscript --vanilla -e 'cat(.libPaths()[1])')
+        target_library_path=$(Rscript --vanilla -e 'cat(.libPaths()[1])' 2> /dev/null )
         echo "determined: $target_library_path"
         echo "deactivating"
         source $target_unpacked"/bin/deactivate"
