@@ -19,7 +19,7 @@ Example for development work:
 
 .. code-block:: bash
 
-   ./icrn_manager libraries init /u/hdpriest/icrn_temp_repository
+   ./icrn_manager libraries init /sw/icrn/jupyter/icrn_ncsa_resources/Kernels
 
 This command can be run again to point at a different central repository, without disrupting your files.
 

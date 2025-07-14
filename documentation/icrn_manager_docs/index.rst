@@ -4,10 +4,6 @@
 Illinois Computes Library & Kernel Manager
 =========================================
 
-Project Repository
-------------------
-
-
 The Illinois Computes Library & Kernel Manager is a tool for managing R library environments for the Illinois Computes Research Notebook (ICRN) platform. It enables users to easily install, switch, and manage complex R package sets without manual configuration.
 
 .. figure:: ../demo_resources/icrn_libraries_mngr_switch.gif

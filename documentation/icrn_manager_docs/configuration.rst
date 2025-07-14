@@ -3,16 +3,20 @@ Configuration
 
 Central Repository Structure
 ---------------------------
-The central repository should have the following structure:
+The central repository has the following structure:
 
 .. code-block:: text
 
    <central_repo>/
-      r_libraries/
-         <library_name>/
-            <version>/
-               <conda-pack>.tar.gz
-         icrn_catalogue.json
+        Python/
+           ...
+        R/
+           icrn_catalogue.json
+              <library_name>/
+                 <version>/
+                    <conda-pack>.tar.gz
+        
+         
 
 Example catalog file (icrn_catalogue.json):
 

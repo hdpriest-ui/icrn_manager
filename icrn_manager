@@ -6,7 +6,7 @@
 # [[ $_ != $0 ]] && return
 
 # check for existence of needed tools
-if [ -z jq ]; then
+if [ -z $(type -p jq) ]; then
     echo "Need tool jq installed to proceed."
     exit 1
 fi

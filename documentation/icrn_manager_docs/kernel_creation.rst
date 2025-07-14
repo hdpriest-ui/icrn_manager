@@ -35,7 +35,9 @@ You can verify the installed packages:
    Rscript -e 'installed.packages()'
 
 Note that it is at this point you should download, compile, and install all necessary software for the intended R kernel. You must use the package management systems embedded within 
-The Conda environment you have created (e.g., pip, conda, R's install.packages, or as above, BiocManager::install() ). Installations or configuration done outside of the environment's 
+The Conda environment you have created (e.g., pip, conda, R's install.packages, or as above, BiocManager::install() ). 
+
+Installations or configuration done outside of the environment's 
 file tree will not be included in the conda environment after packing, and will not be included with the kernel when it is leveraged by the user's R environment, leading to unpredictable behavior.
 
 
@@ -77,8 +79,12 @@ As a user, test the new kernel by running:
 
 .. code-block:: bash
 
+   # get the new library
    ./icrn_manager libraries get Rbioconductor 3.20
+   # use the new library
    ./icrn_manager libraries use Rbioconductor 3.20
+   # access contents of the new library via R
+   # note that here - because we're using the new library, this actually accesses a different Rscript!
    Rscript -e 'BiocManager::version()'
    Rscript -e 'library(edgeR)'
 
