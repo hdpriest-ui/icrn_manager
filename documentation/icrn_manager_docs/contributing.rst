@@ -3,6 +3,8 @@ Contributing
 
 We welcome contributions to the Illinois Computes Library & Kernel Manager project!
 
+The source code and latest updates are available on GitHub: `hdpriest-ui/icrn_manager <https://github.com/hdpriest-ui/icrn_manager>`
+
 Developer Guide: Creating New Kernels
 -------------------------------------
 - To contribute new R kernels (library environments) to the central catalog, see :doc:`kernel_creation` for a step-by-step walkthrough using Bioconductor as an example.
