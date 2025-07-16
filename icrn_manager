@@ -145,7 +145,8 @@ function libraries__use() # use a library which is already checked out
     local version=$1; shift
 
     local target_r_environ_file=${HOME}"/.Renviron"
-    local target_r_libs_script="./update_r_libs.sh"
+    # dependent on PATH VAR
+    local target_r_libs_script="update_r_libs.sh"
 
     if [ "$targetname" = "none" ]; then
         echo "Desired library: none"
@@ -280,7 +281,7 @@ function libraries__get() # get a library from the central repo
         # ./update_r_libs.sh ~/.Renviron $targetname
         echo "Done."
         echo ""
-        echo "Be sure to call \"./icrn_manager libraries use $targetname $version\" to begin using this library in R."
+        echo "Be sure to call \"icrn_manager libraries use $targetname $version\" to begin using this library in R."
     fi
 }
 
