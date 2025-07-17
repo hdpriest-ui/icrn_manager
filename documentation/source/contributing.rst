@@ -7,7 +7,7 @@ The source code and latest updates are available on GitHub: `hdpriest-ui/icrn_ma
 
 Developer Guide: Creating New Kernels
 -------------------------------------
-- To contribute new R kernels (library environments) to the central catalog, see :doc:`kernel_creation` for a step-by-step walkthrough using Bioconductor as an example.
+- To contribute new R kernels (library environments) to the central catalog, see :doc:`maintainer_guide` for a step-by-step walkthrough using Bioconductor as an example.
 
 How to Contribute
 -----------------
