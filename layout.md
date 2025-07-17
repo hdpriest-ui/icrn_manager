@@ -1,0 +1,22 @@
+# desired layout for documentation
+
+- Maintainer
+    - R Kernels
+    - Python Kernels
+        - add how to add jupyter pieces
+- User Section
+    - ICRN
+        - R Kernels
+            - how to switch
+            - how to restart
+        - Jupyter Kernel
+            - how to add to my environment
+            - how to remove from my environment
+    - Campus Cluster
+        - R Kernels
+            - what modules to load
+            - how to switch
+        - Jupyter Kernels
+            - what modules to use (esp GPU)
+            - how to pick a kernel
+        - Maybe short example a slurm batch job for each

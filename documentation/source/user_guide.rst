@@ -1,3 +1,6 @@
+.. note::
+   This guide has been split into sub-guides under the user/ directory. See those sections for details.
+
 User Guide
 ==========
 

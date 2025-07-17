@@ -1,6 +1,9 @@
 Overview
 ========
 
+.. note::
+   This section provides general background and is not part of the main user or maintainer guides.
+
 The Illinois Computes Library & Kernel Manager is designed to simplify the management of R library environments for users of the Illinois Computes Research Notebook (ICRN). Many scientific domains require complex R and Python packages, which can be difficult to install and configure, especially for new users of high-performance computing systems.
 
 This tool provides a user-friendly command-line interface to:

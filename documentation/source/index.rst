@@ -16,14 +16,15 @@ The Illinois Computes Library & Kernel Manager is a tool for managing R library 
    :maxdepth: 2
    :caption: Contents:
 
+   maintainer/index
+   user/index
+
    overview
    installation
-   user_guide
    configuration
    reference
    troubleshooting
    contributing
-   maintainer_guide
 
 Indices and tables
 ==================

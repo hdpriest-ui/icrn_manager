@@ -8,7 +8,7 @@ Overview
 The ICRN manager supports reproducible, shareable R environments by distributing pre-built, packed conda environments. This guide walks through the process of creating a new R kernel (using Bioconductor as an example), packaging it, and adding it to the central catalog.
 
 .. note::
-   For details on the central repository structure, see the :doc:`configuration` section.
+   This guide has been split into sub-guides under the maintainer/ directory. See those sections for details.
 
 Step 1: Create a New Conda Environment
 --------------------------------------
