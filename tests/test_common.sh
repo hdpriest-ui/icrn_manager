@@ -73,6 +73,7 @@ run_test() {
     echo "Description: $description"
     echo "----------------------------------------"
     
+    # Run the test function
     if $test_function; then
         print_status "PASS" "$test_name: $description"
         log_test "$test_name" "PASS" "$description"
@@ -141,6 +142,11 @@ check_prerequisites() {
 # Function to setup test environment
 setup_test_env() {
     print_status "INFO" "Setting up test environment..."
+    
+    # Clean up any existing test environment
+    if [ -d "$TEST_BASE" ]; then
+        rm -rf "$TEST_BASE"
+    fi
     
     # Create test directories
     mkdir -p "$TEST_BASE"

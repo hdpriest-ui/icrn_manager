@@ -122,7 +122,7 @@ function kernels__available() # get a list of available kernels from the central
         kernels=$(jq -r ".$language | keys[]" $icrn_catalog)
         for kernel in $kernels; do
             versions=$(jq -r ".$language.$kernel | keys[]" $icrn_catalog)
-            for version in $versions; do
+        for version in $versions; do
                 echo -e $language"\t"$kernel"\t"$version
             done
         done
@@ -143,7 +143,7 @@ function kernels__list() # get the list of kernels already checked out and ready
         kernels=$(jq -r ".$language | keys[]" $user_catalog)
         for kernel in $kernels; do
             versions=$(jq -r ".$language.$kernel | keys[]" $user_catalog)
-            for version in $versions; do
+        for version in $versions; do
                 echo -e $language"\t"$kernel"\t"$version
             done
         done
@@ -161,16 +161,24 @@ function kernels__use() # use a kernel which is already checked out
     local target_r_libs_script="update_r_libs.sh"
 
     if [ "$targetname" = "none" ]; then
-        echo "Desired kernel: none"
-    elif [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
+        echo "Desired kernel: none for $language"
+    elif [ -z $targetname ] || [ -z $language ]; then
+        echo "usage: icrn_manager kernels use <language> <kernel name> [version number]"
+        echo "       or: icrn_manager kernels use <language> none"
+        help
+        exit 1
+    elif [ -z $version ] && [ "$targetname" != "none" ]; then
         echo "usage: icrn_manager kernels use <language> <kernel name> <version number>"
+        echo "       or: icrn_manager kernels use <language> none"
         help
         exit 1
     else
         echo "Desired kernel:"
         echo "Language: "$language
         echo "Kernel: "$targetname
+        if [ "$targetname" != "none" ]; then
         echo "Version: "$version
+        fi
     fi
 
     icrn_catalog=${ICRN_KERNEL_CATALOG}
@@ -178,8 +186,22 @@ function kernels__use() # use a kernel which is already checked out
     # add in checking for various needed entities
     # TODO: convert this to using the kernel-checking methods above
     if [ "$targetname" = "none" ]; then
-        echo "Removing preconfigured kernels from R..."
+        case $language in
+            "R")
+                echo "Removing preconfigured kernels from R..."
         ${target_r_libs_script} ${target_r_environ_file}
+                ;;
+            "Python")
+                echo "Removing preconfigured kernels from Python..."
+                # TODO: Implement Python kernel removal when Python support is added
+                echo "Python kernel removal not yet implemented"
+                ;;
+            *)
+                echo "Unsupported language '$language' for kernel removal"
+                echo "Supported languages: R, Python"
+                exit 1
+                ;;
+        esac
     else
         target_kernel_link_path=${ICRN_USER_KERNEL_BASE}/${targetname}
         absolute_path=$(jq -r ".\"$language\".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalog)
@@ -251,7 +273,7 @@ function unpack_python_kernel() # unpack and configure a Python kernel environme
     local language=$1; shift
     local targetname=$1; shift
     local version=$1; shift
-    
+
     echo "Python kernel unpacking not yet implemented."
     echo "Target directory: $target_unpacked"
     echo "Language: $language"
@@ -624,6 +646,7 @@ function help() # Show a list of functions
     echo "    get <language> <kernel> <version>"
     echo "    remove"
     echo "    use <language> <kernel> <version>"
+    echo "    use <language> none"
     echo " "
     echo " "
 }

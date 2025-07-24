@@ -1,58 +1,138 @@
 Troubleshooting
 ==============
 
-Common issues and solutions when using the Illinois Computes Library & Kernel Manager.
+This section covers common issues and their solutions when using the ICRN Kernel Manager.
 
-Common Errors
+Common Issues
 -------------
 
-- **Error**: "usage: icrn_manager kernels get <language> <kernel name> <version number>"
+**Permission Errors**
+~~~~~~~~~~~~~~~~~~~~~
+If you encounter permission errors when using kernels:
 
-  **Solution**: Make sure to include the language parameter (R, Python, etc.) in your command:
-  
-  .. code-block:: bash
+.. code-block:: bash
 
-     ./icrn_manager kernels get R cowsay 1.0
+   ERROR: no write permission for target directory: /path/to/directory
+   ERROR: no write permission for target file: /path/to/file
 
-- **Error**: "Could not find target kernel to get"
+**Solution:**
+- Ensure you have write permissions to the target directory and file
+- Check file ownership and permissions: `ls -la /path/to/file`
+- Use `chmod` to adjust permissions if needed
 
-  **Solution**: Check that the kernel exists in the central catalog:
-  
-  .. code-block:: bash
+**Invalid File Path Errors**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If you see errors about invalid file paths:
 
-     ./icrn_manager kernels available
+.. code-block:: bash
 
-- **Error**: "Path could not be found. There is a problem with your user catalog."
+   ERROR: target directory does not exist: /nonexistent/directory
+   ERROR: no target Renviron file specified.
 
-  **Solution**: Clean the problematic entry and re-download:
-  
-  .. code-block:: bash
+**Solution:**
+- Verify the file path exists and is accessible
+- Check that the directory structure is correct
+- Ensure the path doesn't contain special characters that need escaping
 
-     ./icrn_manager kernels clean <language> <kernel> <version>
-     ./icrn_manager kernels get <language> <kernel> <version>
+**Configuration Errors**
+~~~~~~~~~~~~~~~~~~~~~~~~
+If commands fail with configuration errors:
 
-- **Error**: "Couldn't locate ICRN's central catalog"
+.. code-block:: bash
 
-  **Solution**: Re-initialize the manager with the correct path:
-  
-  .. code-block:: bash
+   You must run 'icrn_manager kernels init' prior to leveraging this tool.
+   Couldn't locate user catalog at: /path/to/catalog
 
-     ./icrn_manager kernels init /path/to/central/repository
+**Solution:**
+- Run `./icrn_manager kernels init <repository_path>` to initialize the environment
+- Verify the central repository path is correct and accessible
+- Check that the catalog files exist and are readable
 
-Environment Issues
------------------
+**Kernel Not Found Errors**
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If a kernel cannot be found:
 
-- **R packages not loading**: Make sure you've activated the kernel:
-  
-  .. code-block:: bash
+.. code-block:: bash
 
-     ./icrn_manager kernels use <language> <kernel> <version>
+   ERROR: could not find target kernel to get
+   Could not find version: 1.0
 
-- **Multiple kernels conflicting**: Only one kernel can be active at a time. Switch or deactivate:
-  
-  .. code-block:: bash
+**Solution:**
+- Use `./icrn_manager kernels available` to see available kernels
+- Check the kernel name and version spelling
+- Verify the kernel exists in the central catalog
 
-     ./icrn_manager kernels use none
-     ./icrn_manager kernels use <language> <kernel> <version>
+**R Environment Issues**
+~~~~~~~~~~~~~~~~~~~~~~~~
+If R kernels don't work as expected:
 
-For more help, see the :doc:`usage` section. 
+.. code-block:: bash
+
+   R_LIBS not set correctly
+   Package not found in R
+
+**Solution:**
+- Use `./icrn_manager kernels use R <kernel> <version>` to activate the kernel
+- Check that the kernel was properly installed with `./icrn_manager kernels list`
+- Restart your R session after switching kernels
+- Verify the .Renviron file contains the correct R_LIBS path
+
+Error Handling Improvements
+--------------------------
+Recent updates to the ICRN Kernel Manager include improved error handling:
+
+**File Path Validation**
+- The system now validates file paths before attempting operations
+- Clear error messages indicate exactly what went wrong
+- Permission checks prevent silent failures
+
+**Graceful Failures**
+- Commands fail with descriptive error messages instead of shell errors
+- Exit codes are consistent and meaningful
+- Error output is formatted for easy reading
+
+**Test Suite Validation**
+- A comprehensive test suite validates all functionality
+- Tests run in isolated environments to prevent interference
+- Automated testing catches issues before they reach users
+
+Debugging
+---------
+To debug issues with the ICRN Kernel Manager:
+
+**Enable Verbose Output**
+.. code-block:: bash
+
+   # Run commands with additional output
+   bash -x ./icrn_manager kernels list
+
+**Check Configuration Files**
+.. code-block:: bash
+
+   # View current configuration
+   cat ~/.icrn/manager_config.json
+   cat ~/.icrn/icrn_kernels/user_catalog.json
+
+**Verify File Permissions**
+.. code-block:: bash
+
+   # Check permissions on key directories
+   ls -la ~/.icrn/
+   ls -la ~/.icrn/icrn_kernels/
+
+**Test Individual Components**
+.. code-block:: bash
+
+   # Test the update_r_libs script directly
+   ./update_r_libs.sh ~/.Renviron test_kernel
+
+Getting Help
+-----------
+If you continue to experience issues:
+
+1. **Check the logs**: Look for error messages in the command output
+2. **Run the test suite**: Use `./tests/run_tests.sh all` to verify your installation
+3. **Review configuration**: Ensure all paths and permissions are correct
+4. **Report issues**: Create an issue on GitHub with detailed error information
+
+For more detailed information, see the :doc:`user_guide` and :doc:`maintainer_guide`. 

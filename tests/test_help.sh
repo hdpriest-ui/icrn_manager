@@ -5,10 +5,6 @@
 source "$(dirname "$0")/test_common.sh"
 
 test_help_command() {
-    # Setup fresh test environment for this test
-    setup_test_env
-    set_test_env
-    
     local output
     output=$("$ICRN_MANAGER" help 2>&1)
     
@@ -23,10 +19,6 @@ test_help_command() {
 }
 
 test_invalid_command() {
-    # Setup fresh test environment for this test
-    setup_test_env
-    set_test_env
-    
     local output
     output=$("$ICRN_MANAGER" invalid_command 2>&1)
     
@@ -41,10 +33,6 @@ test_invalid_command() {
 }
 
 test_kernels_help() {
-    # Setup fresh test environment for this test
-    setup_test_env
-    set_test_env
-    
     local output
     output=$("$ICRN_MANAGER" kernels 2>&1)
     

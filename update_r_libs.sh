@@ -10,7 +10,20 @@ target_Renviron_file=$1
 target_kernel_name=$2
 
 if [ -z "$target_Renviron_file" ]; then
-    echo "no target Renviron file specified."
+    echo "ERROR: no target Renviron file specified."
+    exit 1
+fi
+
+# Validate target file path
+target_dir=$(dirname "$target_Renviron_file")
+if [ ! -d "$target_dir" ]; then
+    echo "ERROR: target directory does not exist: $target_dir"
+    exit 1
+fi
+
+# Check if we can write to the target directory
+if [ ! -w "$target_dir" ]; then
+    echo "ERROR: no write permission for target directory: $target_dir"
     exit 1
 fi
 
@@ -32,21 +45,28 @@ update_r_libs_path()
     target_r_environ_file=$1
     icrn_kernel_name=$2
     ICRN_kernel_path=${ICRN_KERNEL_BASE}/${icrn_kernel_name}
-    echo "# ICRN ADDITIONS - do not edit this line or below" >> $target_r_environ_file
+    
+    # Ensure the target file can be written to
+    if [ -f "$target_r_environ_file" ] && [ ! -w "$target_r_environ_file" ]; then
+        echo "ERROR: no write permission for target file: $target_r_environ_file"
+        return 1
+    fi
+    
+    echo "# ICRN ADDITIONS - do not edit this line or below" >> "$target_r_environ_file"
     if [ -z "$icrn_kernel_name" ]; then
         echo "Unsetting R_libs..."
-        echo "R_LIBS="'${R_LIBS:-}' >> $target_r_environ_file
+        echo "R_LIBS="'${R_LIBS:-}' >> "$target_r_environ_file"
     else
         echo "Using ${ICRN_kernel_path} within R..."
-        echo "R_LIBS="${ICRN_kernel_path}':${R_LIBS:-}' >> $target_r_environ_file
+        echo "R_LIBS="${ICRN_kernel_path}':${R_LIBS:-}' >> "$target_r_environ_file"
     fi
 }
 
-if [ ! -z $target_Renviron_file ]; then
-    if [ -e $target_Renviron_file ]; then
-        if [ ! -z "$(grep "# ICRN ADDITIONS - do not edit this line or below" $target_Renviron_file)" ]; then
-            sed -i '/^# ICRN ADDITIONS - do not edit this line or below$/,$d' $target_Renviron_file 
+if [ ! -z "$target_Renviron_file" ]; then
+    if [ -e "$target_Renviron_file" ]; then
+        if [ ! -z "$(grep "# ICRN ADDITIONS - do not edit this line or below" "$target_Renviron_file" 2>/dev/null)" ]; then
+            sed -i '/^# ICRN ADDITIONS - do not edit this line or below$/,$d' "$target_Renviron_file" 
         fi
     fi
-    update_r_libs_path $target_Renviron_file $target_kernel_name
+    update_r_libs_path "$target_Renviron_file" "$target_kernel_name"
 fi

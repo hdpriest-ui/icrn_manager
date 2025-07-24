@@ -92,9 +92,36 @@ As a user, test the new kernel by running:
 
 You should see the correct Bioconductor version and be able to load the installed packages.
 
+**Automated Testing:**
+The project includes a comprehensive test suite that can help validate your new kernel:
+
+.. code-block:: bash
+
+   # Run the full test suite to ensure your changes don't break existing functionality
+   ./tests/run_tests.sh all
+   
+   # Run specific test categories
+   ./tests/run_tests.sh kernels          # Test kernel operations
+   ./tests/run_tests.sh config           # Test configuration validation
+
+**Testing Your New Kernel:**
+1. Add your kernel to the test catalog in `tests/test_common.sh` if you want it included in automated testing
+2. Verify that the kernel can be retrieved and used successfully
+3. Test error handling by attempting to use invalid parameters
+4. Ensure the kernel works correctly in the target environment
+
+**Error Handling Improvements:**
+Recent updates to the codebase include improved error handling:
+
+- **File Path Validation**: The `update_r_libs.sh` script now validates file paths and permissions before attempting to write
+- **Graceful Failures**: Commands now fail with clear error messages instead of shell errors
+- **Test Isolation**: Each test runs in its own isolated environment to prevent interference
+
 Tips and Troubleshooting
 ------------------------
 - Be aware of the version of R the ICRN is using, how it aligns with the version in your custom environment, and especially how it matches the version of R for which the installed packages were developed for. Mismatches may cause unpredictable behavior.
 - Restart R sessions after switching kernels.
 - For more on the catalog structure, see :doc:`configuration`.
 - For usage/testing, see :doc:`user_guide`.
+- **Always test your new kernels thoroughly before adding them to the central catalog.**
+- **Run the test suite to ensure your changes don't break existing functionality.**

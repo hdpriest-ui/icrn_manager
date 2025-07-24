@@ -120,6 +120,33 @@ Note that the user doesn't have to download, install, or compile any R packages 
 
 ## Implementation Details
 
+### Testing
+The project includes a comprehensive test suite to ensure reliability and code quality:
+
+```sh
+# Run all tests
+./tests/run_tests.sh all
+
+# Run specific test categories
+./tests/run_tests.sh kernels          # Kernel operations
+./tests/run_tests.sh update_r_libs    # R library management  
+./tests/run_tests.sh config           # Configuration validation
+./tests/run_tests.sh help             # Help and basic commands
+```
+
+**Test Features:**
+- **Isolated Environments**: Each test runs independently to prevent interference
+- **Mock Data**: Tests use consistent mock kernel packages and catalogs
+- **Error Handling**: Comprehensive testing of both success and failure scenarios
+- **Continuous Integration**: Automated testing on all pull requests
+
+**Recent Improvements:**
+- Enhanced error handling with clear, descriptive error messages
+- File path validation to prevent silent failures
+- Improved test isolation for more reliable testing
+- Better permission checking and validation
+
+For detailed testing information, see the [Contributing Guide](documentation/source/contributing.rst).
 
 ### TODO
 - save all config paths into the configure json, so they can be commonly shared across shell scripts
