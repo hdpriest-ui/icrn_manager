@@ -1,33 +1,58 @@
 Troubleshooting
-===============
+==============
 
-Common Issues
+Common issues and solutions when using the Illinois Computes Library & Kernel Manager.
+
+Common Errors
 -------------
 
-**Missing jq**
+- **Error**: "usage: icrn_manager kernels get <language> <kernel name> <version number>"
 
-- Error: Need tool jq installed to proceed.
-- Solution: Install jq with your package manager (e.g., `sudo apt-get install jq`).
+  **Solution**: Make sure to include the language parameter (R, Python, etc.) in your command:
+  
+  .. code-block:: bash
 
-**Missing user catalog or configuration**
+     ./icrn_manager kernels get R cowsay 1.0
 
-- Error: Couldn't locate user catalog at: ...
-- Solution: Run `./icrn_manager libraries init` to initialize your environment.
+- **Error**: "Could not find target kernel to get"
 
-**Missing central catalog**
+  **Solution**: Check that the kernel exists in the central catalog:
+  
+  .. code-block:: bash
 
-- Error: Couldn't locate ICRN's central catalog at: ...
-- Solution: Contact your system administrator to ensure the central repository is available and correctly configured.
+     ./icrn_manager kernels available
 
-**Cannot find library or version**
+- **Error**: "Path could not be found. There is a problem with your user catalog."
 
-- Error: Could not find version: ...
-- Solution: Use `./icrn_manager libraries available` to see valid libraries and versions.
+  **Solution**: Clean the problematic entry and re-download:
+  
+  .. code-block:: bash
 
-**Permission errors**
+     ./icrn_manager kernels clean <language> <kernel> <version>
+     ./icrn_manager kernels get <language> <kernel> <version>
 
-- Solution: Ensure you have write access to your home directory and the ICRN user directories.
+- **Error**: "Couldn't locate ICRN's central catalog"
 
-**Other environment errors**
+  **Solution**: Re-initialize the manager with the correct path:
+  
+  .. code-block:: bash
 
-- Solution: Double-check that all required directories exist and that you have run the `init` command. 
+     ./icrn_manager kernels init /path/to/central/repository
+
+Environment Issues
+-----------------
+
+- **R packages not loading**: Make sure you've activated the kernel:
+  
+  .. code-block:: bash
+
+     ./icrn_manager kernels use <language> <kernel> <version>
+
+- **Multiple kernels conflicting**: Only one kernel can be active at a time. Switch or deactivate:
+  
+  .. code-block:: bash
+
+     ./icrn_manager kernels use none
+     ./icrn_manager kernels use <language> <kernel> <version>
+
+For more help, see the :doc:`usage` section. 

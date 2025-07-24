@@ -1,98 +1,68 @@
-Maintainer Guide
-===============
+Kernel Creation
+==============
 
-This guide is for developers and engineers who wish to create and contribute new R library environments ("kernels") to the Illinois Computes Library & Kernel Manager central catalog. This is **not** for end-users who simply want to use existing kernels.
+This guide explains how to create new kernels for the Illinois Computes Library & Kernel Manager system.
 
 Overview
 --------
-The ICRN manager supports reproducible, shareable R environments by distributing pre-built, packed conda environments. This guide walks through the process of creating a new R kernel (using Bioconductor as an example), packaging it, and adding it to the central catalog.
+Kernels are pre-packaged environments that contain specific software and dependencies. They are distributed as conda-packed environments and managed through a hierarchical catalog structure organized by language.
 
-.. note::
-   For details on the central repository structure, see the :doc:`configuration` section.
+Creating a New Kernel
+--------------------
 
-Step 1: Create a New Conda Environment
---------------------------------------
-Choose an R version that matches the ICRN platform. For example, to create an environment for Bioconductor:
+1. **Set up the environment**:
+   .. code-block:: bash
 
-.. code-block:: bash
+      conda create --solver=libmamba -c r -y -n my_kernel r-base=4.4.2
+      conda activate my_kernel
 
-   conda create --solver=libmamba -c r -y -n Rbioconductor r-base=4.4.2
-   conda activate Rbioconductor
+2. **Install required packages**:
+   .. code-block:: bash
 
-Step 2: Install Required R Packages
------------------------------------
-Install Bioconductor and any other packages needed:
+      Rscript -e 'install.packages(c("package1", "package2"), repos="http://cran.us.r-project.org")'
 
-.. code-block:: bash
+3. **Pack the environment**:
+   .. code-block:: bash
 
-   Rscript -e 'install.packages(c("BiocManager"), repos="http://cran.us.r-project.org")'
-   Rscript -e 'BiocManager::install("edgeR")'
+      conda install -y --solver=libmamba conda-pack
+      conda pack -n my_kernel -o ./my_kernel.tar.gz
 
-You can verify the installed packages:
+4. **Add to the catalog**:
+   Update the `icrn_kernel_catalog.json` file in the base repository directory:
+   .. code-block:: json
 
-.. code-block:: bash
+      {
+        "R": {
+          "my_kernel": {
+            "1.0": {
+              "conda-pack": "my_kernel.tar.gz",
+              "manifest": ""
+            }
+          }
+        }
+      }
 
-   Rscript -e 'installed.packages()'
+5. **Test the kernel**:
+   .. code-block:: bash
 
-Note that it is at this point you should download, compile, and install all necessary software for the intended R kernel. You must use the package management systems embedded within 
-The Conda environment you have created (e.g., pip, conda, R's install.packages, or as above, BiocManager::install() ). 
+      ./icrn_manager kernels get R my_kernel 1.0
+      ./icrn_manager kernels use R my_kernel 1.0
 
-Installations or configuration done outside of the environment's 
-file tree will not be included in the conda environment after packing, and will not be included with the kernel when it is leveraged by the user's R environment, leading to unpredictable behavior.
+Directory Structure
+------------------
+The central repository should be organized by language:
 
+.. code-block:: text
 
-Step 3: Pack the Environment
-----------------------------
-Install `conda-pack` if not already present, then pack the environment:
+   central_repository/
+   ├── icrn_kernel_catalog.json
+   ├── r_kernels/
+   │   ├── my_kernel/
+   │   │   └── 1.0/
+   │   │       └── my_kernel.tar.gz
+   │   └── ...
+   ├── python_kernels/
+   │   └── ...
+   └── ...
 
-.. code-block:: bash
-
-   conda install -y --solver=libmamba conda-pack
-   conda pack -n Rbioconductor -o ./Rbioconductor.tar.gz
-
-This creates a portable tarball of the environment. Note that the location of the .tar.gz initially is unimportant, as you will move it into the appropriate location at a later time.
-
-Step 4: Add to the Central Catalog
-----------------------------------
-(note: the below section will be changing in the near future with a build-out of tooling around catalog maintenance and update)
-
-1. Place the packed tarball in the appropriate location in the central repository (see :doc:`configuration`).
-2. Update the `icrn_catalogue.json` file to include the new kernel and version. Example entry:
-
-.. code-block:: json
-
-   {
-     "Rbioconductor": {
-       "3.20": {
-         "conda-pack": "Rbioconductor.tar.gz",
-         "manifest": ""
-       }
-     }
-   }
-
-Note that the version string (above: "3.20") is only a string, and therefore serves as a unqiue identifier for a specific tarball. It must be unique within the given Kernel stanza.
-
-
-Step 5: Test the New Kernel
----------------------------
-As a user, test the new kernel by running:
-
-.. code-block:: bash
-
-   # get the new library
-   ./icrn_manager libraries get Rbioconductor 3.20
-   # use the new library
-   ./icrn_manager libraries use Rbioconductor 3.20
-   # access contents of the new library via R
-   # note that here - because we're using the new library, this actually accesses a different Rscript!
-   Rscript -e 'BiocManager::version()'
-   Rscript -e 'library(edgeR)'
-
-You should see the correct Bioconductor version and be able to load the installed packages.
-
-Tips and Troubleshooting
-------------------------
-- Be aware of the version of R the ICRN is using, how it aligns with the version in your custom environment, and especially how it matches the version of R for which the installed packages were developed for. Mismatches may cause unpredictable behavior.
-- Restart R sessions after switching kernels.
-- For more on the catalog structure, see :doc:`configuration`.
-- For usage/testing, see :doc:`user_guide`.
+For more detailed instructions, see the :doc:`maintainer_guide` section.

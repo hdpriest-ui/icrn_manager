@@ -8,7 +8,7 @@ Overview
 The ICRN manager supports reproducible, shareable R environments by distributing pre-built, packed conda environments. This guide walks through the process of creating a new R kernel (using Bioconductor as an example), packaging it, and adding it to the central catalog.
 
 .. note::
-   This guide has been split into sub-guides under the maintainer/ directory. See those sections for details.
+   For details on the central repository structure, see the :doc:`configuration` section.
 
 Step 1: Create a New Conda Environment
 --------------------------------------
@@ -57,15 +57,17 @@ Step 4: Add to the Central Catalog
 (note: the below section will be changing in the near future with a build-out of tooling around catalog maintenance and update)
 
 1. Place the packed tarball in the appropriate location in the central repository (see :doc:`configuration`).
-2. Update the `icrn_catalogue.json` file to include the new kernel and version. Example entry:
+2. Update the `icrn_kernel_catalog.json` file to include the new kernel and version. Example entry:
 
 .. code-block:: json
 
    {
-     "Rbioconductor": {
-       "3.20": {
-         "conda-pack": "Rbioconductor.tar.gz",
-         "manifest": ""
+     "R": {
+       "Rbioconductor": {
+         "3.20": {
+           "conda-pack": "Rbioconductor.tar.gz",
+           "manifest": ""
+         }
        }
      }
    }
@@ -79,12 +81,12 @@ As a user, test the new kernel by running:
 
 .. code-block:: bash
 
-   # get the new library
-   ./icrn_manager libraries get Rbioconductor 3.20
-   # use the new library
-   ./icrn_manager libraries use Rbioconductor 3.20
-   # access contents of the new library via R
-   # note that here - because we're using the new library, this actually accesses a different Rscript!
+   # get the new kernel
+   ./icrn_manager kernels get R Rbioconductor 3.20
+   # use the new kernel
+   ./icrn_manager kernels use R Rbioconductor 3.20
+   # access contents of the new kernel via R
+   # note that here - because we're using the new kernel, this actually accesses a different Rscript!
    Rscript -e 'BiocManager::version()'
    Rscript -e 'library(edgeR)'
 

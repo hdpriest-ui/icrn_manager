@@ -10,7 +10,7 @@ Subcommands
 
   .. code-block:: bash
 
-     ./icrn_manager libraries init [<central_repo_path>]
+     ./icrn_manager kernels init [<central_repo_path>]
 
   Initialize user configuration and point to a central repository.
 
@@ -18,58 +18,58 @@ Subcommands
 
   .. code-block:: bash
 
-     ./icrn_manager libraries available
+     ./icrn_manager kernels available
 
-  List all available libraries and versions in the central catalog.
+  List all available kernels and versions in the central catalog, organized by language.
 
 - **list**
 
   .. code-block:: bash
 
-     ./icrn_manager libraries list
+     ./icrn_manager kernels list
 
-  List all libraries currently checked out and available for use in your user catalog.
+  List all kernels currently checked out and available for use in your user catalog, organized by language.
 
 - **get**
 
   .. code-block:: bash
 
-     ./icrn_manager libraries get <library> <version>
+     ./icrn_manager kernels get <language> <kernel> <version>
 
-  Download and unpack a library environment from the central repository.
+  Download and unpack a kernel environment from the central repository.
 
 - **use** (alias: activate)
 
   .. code-block:: bash
 
-     ./icrn_manager libraries use <library> <version>
-     ./icrn_manager libraries use none
+     ./icrn_manager kernels use <language> <kernel> <version>
+     ./icrn_manager kernels use none
 
-  Activate a library for your R session, or deactivate all libraries.
+  Activate a kernel for your R session, or deactivate all kernels.
 
 - **remove**
 
   .. code-block:: bash
 
-     ./icrn_manager libraries remove <library> <version>
+     ./icrn_manager kernels remove <language> <kernel> <version>
 
-  Remove a checked-out library and its files from your user space.
+  Remove a checked-out kernel and its files from your user space.
 
 - **clean**
 
   .. code-block:: bash
 
-     ./icrn_manager libraries clean <library> <version>
+     ./icrn_manager kernels clean <language> <kernel> <version>
 
-  Remove a library entry from your user catalog (does not delete files).
+  Remove a kernel entry from your user catalog (does not delete files).
 
 - **update**
 
   .. code-block:: bash
 
-     ./icrn_manager libraries update <library> <version>
+     ./icrn_manager kernels update <language> <kernel> <version>
 
-  (Not yet implemented) Update a checked-out library to the latest version from the central repository.
+  (Not yet implemented) Update a checked-out kernel to the latest version from the central repository.
 
 For help, run:
 

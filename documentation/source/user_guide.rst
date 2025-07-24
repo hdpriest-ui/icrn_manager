@@ -22,7 +22,7 @@ How to Stop using custom Kernels
 --------------------------------
 .. code-block:: bash
    
-   ./icrn_manager libraries use none
+   ./icrn_manager kernels use none
 
 This command undoes the behind-the-scenes updates of environment variables and returns your R environment to its default behavior.
 
@@ -35,31 +35,31 @@ List Available Kernels
 ------------------------
 .. code-block:: bash
 
-   ./icrn_manager libraries available
+   ./icrn_manager kernels available
 
-This command lists all libraries and their versions in the central catalog. These libraries are available to you to check out.
+This command lists all kernels and their versions in the central catalog, organized by language. These kernels are available to you to check out.
 
 List Checked Out Kernels
 -------------------------
 .. code-block:: bash
 
-   ./icrn_manager libraries list
+   ./icrn_manager kernels list
 
-This command lists the libraries you have already checked out, which are ready for your immediate use.
+This command lists the kernels you have already checked out, which are ready for your immediate use, organized by language.
 
-Note that these libraries will not automatically update themselves. If it has been a long time since you've used a library, it is highly recommended to remove your own copy of it, clean your catalog, and check it out again.
+Note that these kernels will not automatically update themselves. If it has been a long time since you've used a kernel, it is highly recommended to remove your own copy of it, clean your catalog, and check it out again.
 
 Get an R Kernel
 -------------
 .. code-block:: bash
 
-   ./icrn_manager libraries get <library> <version>
+   ./icrn_manager kernels get <language> <kernel> <version>
 
 Example:
 
 .. code-block:: bash
 
-   ./icrn_manager libraries get pecan 1.9
+   ./icrn_manager kernels get R pecan 1.9
 
 This **copies** the identified kernel-version to your personal catalog, and unpacks it. It does not automatically use the kernel in your R environment.
 
@@ -69,13 +69,13 @@ Use an R Kernel
 -------------
 .. code-block:: bash
 
-   ./icrn_manager libraries use <library> <version>
+   ./icrn_manager kernels use <language> <kernel> <version>
 
 Example:
 
 .. code-block:: bash
 
-   ./icrn_manager libraries use pecan 1.9
+   ./icrn_manager kernels use R pecan 1.9
 
 This activates the specified kernel for your R session by automatically updating your ~/.Renviron file. Only one kernel can be activate at any time.
 
@@ -89,34 +89,34 @@ Switch Kernels
 ----------------
 .. code-block:: bash
 
-   ./icrn_manager libraries use <other-library> <version>
+   ./icrn_manager kernels use <language> <other-kernel> <version>
 
 Stop Using Kernels
 --------------------
 .. code-block:: bash
 
-   ./icrn_manager libraries use none
+   ./icrn_manager kernels use none
 
 
 Remove a Kernels
 ----------------
 .. code-block:: bash
 
-   ./icrn_manager libraries remove <library> <version>
+   ./icrn_manager kernels remove <language> <kernel> <version>
 
 Clean User Catalog Entry
 ------------------------
 .. code-block:: bash
 
    # clear the catalog entry for a specific version of a kernel
-   ./icrn_manager libraries clean <library> <version>
+   ./icrn_manager kernels clean <language> <kernel> <version>
 
    # clear the catalog entry for all versions of a kernel
-   ./icrn_manager libraries clean <library> 
+   ./icrn_manager kernels clean <language> <kernel> 
 
 This will scrub your catalog of the entries relating to this kernel and version. It will not alter any of the actual checked out files for these kernels.
 
-You can use this command and omit the 'version' parameter to scrub all versions of a given library. 
+You can use this command and omit the 'version' parameter to scrub all versions of a given kernel. 
 
 This command, in conjunction with the 'remove' command, allows you to start from a clean slate, if you wish to rebuild your personal catalog of kernels.
 

@@ -1,28 +1,42 @@
 Installation
-============
+===========
+
+The ICRN Kernel Manager is a bash script that requires minimal setup.
 
 Prerequisites
 -------------
-- Bash shell (Linux environment)
-- jq (command-line JSON processor)
-- conda (for managing R environments)
 
-User Installation
------------------
-To initialize the Illinois Computes Library & Kernel Manager for your user account, run:
+- Bash shell
+- jq (JSON processor)
+- tar and gzip utilities
+- conda or miniconda (for kernel creation)
 
-.. code-block:: bash
+Installation Steps
+------------------
 
-   ./icrn_manager libraries init <path to central repository>
+1. **Download the script**:
+   Clone or download the icrn_manager script to your local machine.
 
-Example for development work:
+2. **Make it executable**:
+   .. code-block:: bash
 
-.. code-block:: bash
+      chmod +x icrn_manager
 
-   ./icrn_manager libraries init /sw/icrn/jupyter/icrn_ncsa_resources/Kernels
+3. **Initialize the environment**:
+   .. code-block:: bash
 
-This command can be run again to point at a different central repository, without disrupting your files.
+      ./icrn_manager kernels init <path to central repository>
 
-Central Repository Setup
------------------------
-Administrators should prepare a central repository containing packed conda environments and a catalog file. See the :doc:`configuration` section for details. 
+   Example for production:
+   .. code-block:: bash
+
+      ./icrn_manager kernels init /sw/icrn/jupyter/icrn_ncsa_resources/Kernels
+
+4. **Verify installation**:
+   .. code-block:: bash
+
+      ./icrn_manager kernels available
+
+The script will create the necessary directories and configuration files in your home directory.
+
+For more information, see the :doc:`user_guide`. 

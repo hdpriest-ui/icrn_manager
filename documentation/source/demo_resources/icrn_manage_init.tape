@@ -12,7 +12,7 @@ Set TypingSpeed 20ms
 Type "# User installation is simple; though the central repository must be pre-configured. "
 Enter
 Sleep 1s
-Type `./icrn_manager libraries init ~/icrn_temp_repository`
+Type `./icrn_manager kernels init ~/icrn_temp_repository`
 Enter
 Sleep 1s
 Type "# ~/icrn_temp_repository should be changed to the ICRN central repository location"
