@@ -1,0 +1,10 @@
+ICRN Manager Test Results - kernels - 2025-07-24 13:28:31
+==========================================
+[2025-07-24 13:28:31] PASS: kernels_init - Kernels init creates necessary directories and config
+[2025-07-24 13:28:31] PASS: kernels_available - Kernels available shows catalog contents
+[2025-07-24 13:28:31] PASS: kernels_list_empty - Kernels list shows empty user catalog initially
+[2025-07-24 13:28:31] PASS: kernels_get_python_fail - Kernels get Python fails gracefully (not implemented)
+[2025-07-24 13:28:31] PASS: kernels_get_r_fail - Kernels get R fails with mock data
+[2025-07-24 13:28:31] PASS: kernels_get_invalid_language - Kernels get fails with invalid language
+[2025-07-24 13:28:31] PASS: kernels_get_missing_params - Kernels get fails with missing parameters
+[2025-07-24 13:28:31] PASS: kernels_clean - Kernels clean removes entries from user catalog

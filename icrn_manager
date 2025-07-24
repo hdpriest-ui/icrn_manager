@@ -587,9 +587,15 @@ function kernels__init() # create base resources
 function kernels() # launcher
 {
     local cmdname=$1; shift
-    if [ $cmdname = "remove" ]; then
+    if [ -z "$cmdname" ]; then
+        echo ""
+        echo Error: No subcommand specified.
+        echo ""
+        help
+        exit 1
+    elif [ "$cmdname" = "remove" ]; then
         kernels__remove "$@"
-    elif [ $cmdname = "clean" ]; then
+    elif [ "$cmdname" = "clean" ]; then
         echo "Removing kernel entries for : $@"
         confirm "Are you sure? [Y/n]"
         kernels__clean "$@"
