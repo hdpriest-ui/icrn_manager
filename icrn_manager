@@ -156,6 +156,9 @@ function kernels__use() # use a kernel which is already checked out
     local targetname=$1; shift
     local version=$1; shift
 
+    # ensure we get a uc-first label for lang
+    language="$(tr '[:lower:]' '[:upper:]' <<< ${language:0:1})${language:1}"
+
     local target_r_environ_file=${HOME}"/.Renviron"
     # dependent on PATH VAR
     local target_r_libs_script="update_r_libs.sh"
@@ -207,7 +210,8 @@ function kernels__use() # use a kernel which is already checked out
                         installed_kernels=$(jupyter kernelspec list --json 2>/dev/null | jq -r '.kernelspecs | keys[]' 2>/dev/null || echo "")
                         
                         if [ -n "$installed_kernels" ]; then
-                            echo "Found installed kernels: $installed_kernels"
+                            echo "Found installed kernels."
+                            # echo "Found installed kernels: $installed_kernels"
                             
                             # Remove only kernels that are both in catalog and installed
                             for catalog_kernel in $catalog_kernels; do
@@ -269,7 +273,7 @@ function kernels__use() # use a kernel which is already checked out
                     display_name="${targetname} ${version}"
                     
                     # Check if kernel already exists
-                    if jupyter kernelspec list 2>/dev/null | grep -q "$kernel_name"; then
+                    if jupyter kernelspec list 2>/dev/null | grep -q "^$kernel_name\$"; then
                         echo "Kernel $kernel_name already exists. Removing..."
                         jupyter kernelspec uninstall -y "$kernel_name" 2>/dev/null || echo "Failed to remove existing kernel"
                     fi
@@ -355,7 +359,7 @@ function unpack_python_kernel() # unpack and configure a Python kernel environme
     if [ -e $target_unpacked"bin/activate" ]; then
         echo "activating environment"
         source $target_unpacked"bin/activate"
-        chmod u+w $target_unpacked"bin/activate"
+        chmod -R u+w $target_unpacked
         echo "doing unpack"
         conda-unpack
         echo "deactivating"
