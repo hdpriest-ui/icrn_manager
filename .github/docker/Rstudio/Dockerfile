@@ -7,7 +7,7 @@ FROM jupyter/minimal-notebook:${JUPYTER_VERSION}
 
 ARG ICRN_MANAGER_PATH=/sw/icrn/jupyter/icrn_ncsa_resources/tools/icrn_manager/
 ARG ICRN_KERNELS_PATH=/sw/icrn/jupyter/icrn_ncsa_resources/kernels/
-ARG ICRN_TESTS_PATH=/sw/icrn/jupyter/icrn_ncsa_resources/tests/
+# ARG ICRN_TESTS_PATH=/sw/icrn/jupyter/icrn_ncsa_resources/tests/
 
 # Switch to root to install additional packages
 USER root
@@ -54,9 +54,11 @@ COPY ./update_r_libs.sh /usr/local/bin/update_r_libs.sh
 RUN chmod +x /usr/local/bin/icrn_manager && \
     chmod +x /usr/local/bin/update_r_libs.sh
 
-RUN chown -R $NB_USER:users /sw
+# eh? no. this is a shared volume; i'm pretty sure.
+# RUN chown -R $NB_USER:users /sw
 
 # Switch to default NB_USER
 USER $NB_USER
 
+# after switch, run init, so user's homedir is set up with catalog, etc.
 RUN icrn_manager kernels init $ICRN_KERNELS_PATH
