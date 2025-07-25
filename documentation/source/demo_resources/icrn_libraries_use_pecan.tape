@@ -1,34 +1,46 @@
+# Where should we write the GIF?
+Output documentation/source/demo_resources/icrn_libraries_use_pecan.gif
+
+# Set up a 1200x600 terminal with 18px font.
+Set FontSize 18 
+Set Width 1200
+Set Height 600
+Set WindowBar Colorful
+Set TypingSpeed 20ms
+
 # icrn_libraries_use_pecan.tape
 # This file contains the commands used to generate the animated GIF demonstration
 # of using the icrn_manager to get and use the pecan kernel
 
-# Clear the terminal
-clear
+Type "./icrn_manager kernels available"
+Enter
+Sleep 2s
 
-# Show the current directory
-pwd
+Type "./icrn_manager kernels get R pecan 1.9"
+Enter
+Sleep 180s
 
-# List available kernels
-./icrn_manager kernels available
+Type "./icrn_manager kernels list"
+Enter
+Sleep 2s
 
-# Get the pecan kernel
-./icrn_manager kernels get R pecan 1.9
+Type "./icrn_manager kernels use R pecan 1.9"
+Enter
+Sleep 2s
 
-# List checked out kernels
-./icrn_manager kernels list
+Type "Rscript -e '.libPaths()'"
+Enter
+Sleep 2s
 
-# Use the pecan kernel
-./icrn_manager kernels use R pecan 1.9
+Type "Rscript -e 'library(PEcAn.all)'"
+Enter
+Sleep 2s
 
-# Show the R environment
-Rscript -e "cat('R library paths:\n'); cat(paste(.libPaths(), collapse='\n')); cat('\n\n')"
+Type "./icrn_manager kernels use none"
+Enter
+Sleep 1s
 
-# Test the pecan kernel
-Rscript -e "library(PEcAn.all)"
-
-# Stop using the kernel
-./icrn_manager kernels use none
-
-# Show the R environment again
-Rscript -e "cat('R library paths:\n'); cat(paste(.libPaths(), collapse='\n')); cat('\n\n')"
+Type "Rscript -e '.libPaths()'"
+Enter
+Sleep 2s
 

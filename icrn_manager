@@ -189,12 +189,46 @@ function kernels__use() # use a kernel which is already checked out
         case $language in
             "R")
                 echo "Removing preconfigured kernels from R..."
-        ${target_r_libs_script} ${target_r_environ_file}
+                ${target_r_libs_script} ${target_r_environ_file}
                 ;;
             "Python")
                 echo "Removing preconfigured kernels from Python..."
-                # TODO: Implement Python kernel removal when Python support is added
-                echo "Python kernel removal not yet implemented"
+                
+                # Get list of kernels from user catalog
+                user_catalog=${ICRN_USER_CATALOG}
+                if [ -f "$user_catalog" ]; then
+                    # Get all Python kernels from user catalog
+                    catalog_kernels=$(jq -r '.Python | to_entries[] | .key + "-" + (.value | to_entries[] | .key)' "$user_catalog" 2>/dev/null || echo "")
+                    
+                    if [ -n "$catalog_kernels" ]; then
+                        echo "Found Python kernels in user catalog: $catalog_kernels"
+                        
+                        # Get list of installed kernels from jupyter
+                        installed_kernels=$(jupyter kernelspec list --json 2>/dev/null | jq -r '.kernelspecs | keys[]' 2>/dev/null || echo "")
+                        
+                        if [ -n "$installed_kernels" ]; then
+                            echo "Found installed kernels: $installed_kernels"
+                            
+                            # Remove only kernels that are both in catalog and installed
+                            for catalog_kernel in $catalog_kernels; do
+                                if echo "$installed_kernels" | grep -q "^$catalog_kernel$"; then
+                                    echo "Removing kernel: $catalog_kernel"
+                                    jupyter kernelspec uninstall -y "$catalog_kernel" 2>/dev/null || echo "Failed to remove kernel: $catalog_kernel"
+                                else
+                                    echo "Kernel $catalog_kernel not found in jupyter kernelspec list, skipping"
+                                fi
+                            done
+                        else
+                            echo "No installed kernels found in jupyter kernelspec list"
+                        fi
+                    else
+                        echo "No Python kernels found in user catalog"
+                    fi
+                else
+                    echo "User catalog not found"
+                fi
+                
+                echo "Python kernel removal complete"
                 ;;
             *)
                 echo "Unsupported language '$language' for kernel removal"
@@ -203,25 +237,68 @@ function kernels__use() # use a kernel which is already checked out
                 ;;
         esac
     else
-        target_kernel_link_path=${ICRN_USER_KERNEL_BASE}/${targetname}
         absolute_path=$(jq -r ".\"$language\".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalog)
         echo "checking for: "$absolute_path
-        if [ -e "$target_kernel_link_path" ]; then
-            echo "Found existing link; removing..."
-            echo "$target_kernel_link_path"
-            rm -f "$target_kernel_link_path"
-        fi
-        if [ -d "$absolute_path" ]; then
-            echo "Found. Linking and Activating..."
-            ln -s $absolute_path $target_kernel_link_path 
-            ${target_r_libs_script} ${target_r_environ_file} $targetname
-            echo "Done."
-        else
-            echo "Path could not be found. There is a problem with your user catalog."
-            echo "Consider cleaning the entry in your catalog via: ./icrn_manager kernels clean $language $targetname $version"
-            echo "And then checking out the kernel again."
-            exit 1
-        fi
+        
+        case $language in
+            "R")
+                target_kernel_link_path=${ICRN_USER_KERNEL_BASE}/${targetname}
+                if [ -e "$target_kernel_link_path" ]; then
+                    echo "Found existing link; removing..."
+                    echo "$target_kernel_link_path"
+                    rm -f "$target_kernel_link_path"
+                fi
+                if [ -d "$absolute_path" ]; then
+                    echo "Found. Linking and Activating..."
+                    ln -s $absolute_path $target_kernel_link_path 
+                    ${target_r_libs_script} ${target_r_environ_file} $targetname
+                    echo "Done."
+                else
+                    echo "Path could not be found. There is a problem with your user catalog."
+                    echo "Consider cleaning the entry in your catalog via: ./icrn_manager kernels clean $language $targetname $version"
+                    echo "And then checking out the kernel again."
+                    exit 1
+                fi
+                ;;
+            "Python")
+                if [ -d "$absolute_path" ]; then
+                    echo "Found. Activating Python kernel..."
+                    
+                    # Check if kernel is already installed
+                    kernel_name="${targetname}-${version}"
+                    display_name="${targetname} ${version}"
+                    
+                    # Check if kernel already exists
+                    if jupyter kernelspec list 2>/dev/null | grep -q "$kernel_name"; then
+                        echo "Kernel $kernel_name already exists. Removing..."
+                        jupyter kernelspec uninstall -y "$kernel_name" 2>/dev/null || echo "Failed to remove existing kernel"
+                    fi
+                    
+                    # Activate the conda environment and install the kernel
+                    echo "Installing Python kernel: $kernel_name"
+                    source "$absolute_path/bin/activate"
+                    
+                    # Install the kernel
+                    python -m ipykernel install --user --name "$kernel_name" --display-name="$display_name" 2>/dev/null
+                    
+                    # Deactivate the environment
+                    source "$absolute_path/bin/deactivate"
+                    
+                    echo "Python kernel installation complete."
+                    echo "Kernel '$kernel_name' is now available in Jupyter."
+                else
+                    echo "Path could not be found. There is a problem with your user catalog."
+                    echo "Consider cleaning the entry in your catalog via: ./icrn_manager kernels clean $language $targetname $version"
+                    echo "And then checking out the kernel again."
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "Unsupported language '$language' for kernel activation"
+                echo "Supported languages: R, Python"
+                exit 1
+                ;;
+        esac
     fi
 }
 
@@ -273,22 +350,29 @@ function unpack_python_kernel() # unpack and configure a Python kernel environme
     local language=$1; shift
     local targetname=$1; shift
     local version=$1; shift
-
-    echo "Python kernel unpacking not yet implemented."
-    echo "Target directory: $target_unpacked"
-    echo "Language: $language"
-    echo "Kernel: $targetname"
-    echo "Version: $version"
     
-    # TODO: Implement Python kernel unpacking
-    # This should:
-    # 1. Activate the conda environment
-    # 2. Run conda-unpack
-    # 3. Determine the Python site-packages path
-    # 4. Update the user catalog with the path information
-    # 5. Provide usage instructions
-    
-    return 1
+    echo checking for: $target_unpacked"bin/activate"
+    if [ -e $target_unpacked"bin/activate" ]; then
+        echo "activating environment"
+        source $target_unpacked"bin/activate"
+        chmod u+w $target_unpacked"bin/activate"
+        echo "doing unpack"
+        conda-unpack
+        echo "deactivating"
+        source $target_unpacked"/bin/deactivate"
+        
+        echo "Updating user's catalog with $language $targetname and $version"
+        user_catalog_tmp=$(mktemp)
+        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_unpacked\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        
+        echo "Done."
+        echo ""
+        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in Python."
+        return 0
+    else
+        echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
+        return 1
+    fi
 }
 
 function kernels__get() # get a kernel from the central repo
@@ -297,6 +381,15 @@ function kernels__get() # get a kernel from the central repo
     local targetname=$1; shift
     local version=$1; shift
 
+    # ensure we get a uc-first label for lang
+    language="$(tr '[:lower:]' '[:upper:]' <<< ${language:0:1})${language:1}"
+
+    # Validate input parameters to prevent path traversal and wildcard attacks
+    if [[ "$targetname" =~ [\]\/\[\*\?\\] ]] || [[ "$version" =~ [\]\/\[\*\?\\] ]]; then
+        echo "Error: Invalid characters in kernel name or version. Cannot contain wildcards (*?[]) or path separators (/)"
+        exit 1
+    fi
+    
     if [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
         echo "usage: icrn_manager kernels get <language> <kernel name> <version number>"
         help
@@ -337,16 +430,27 @@ function kernels__get() # get a kernel from the central repo
         
         if [ -e $pack_filepath ]; then
             # identify target location, make it if it doesn't exist, and then unpack to it
-            target_unpacked=${ICRN_USER_KERNEL_BASE}/$targetname-$version/
-            if [ ! -d $target_unpacked ]; then
+            # Create language-specific subdirectory structure
+            language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
+            target_unpacked="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
+            
+            # Safety check: ensure the path is within the intended directory
+            if [[ "$target_unpacked" != "$ICRN_USER_KERNEL_BASE"* ]]; then
+                echo "Error: Security violation - target path would escape intended directory"
+                echo "Target: $target_unpacked"
+                echo "Base: $ICRN_USER_KERNEL_BASE"
+                exit 1
+            fi
+            
+            if [ ! -d "$target_unpacked" ]; then
                 echo "Making target directory: $target_unpacked"
-                mkdir -p $target_unpacked
+                mkdir -p "$target_unpacked"
                 echo "Checking out kernel..."
-                tar -xzf $pack_filepath -C $target_unpacked
+                tar -xzf "$pack_filepath" -C "$target_unpacked"
             else
                 echo "WARNING: target directory: $target_unpacked already exists!"
                 echo "Overwriting existing files from packed kernel..."
-                tar -xzf $pack_filepath -U -C $target_unpacked
+                tar -xzf "$pack_filepath" -U -C "$target_unpacked"
                 echo "Note that this risks leaving this kernel in an intermediate state."
                 echo "It is recommended that you remove the kernel entirely by running:"
                 echo "'rm -rf $target_unpacked'"
@@ -381,13 +485,7 @@ function kernels__update() # update users copy of a kernel from central repo
 {
     echo "entered 'update' subcommand"
     echo "method not yet implemented."
-    exit 1
-    # check for target version in central
-    # check for target version in user's
-    # if both present
-    # remove users
-    # get target from central
-    
+    exit 1    
 }
 
 function kernels__clean() # remove a kernel entry from the users catalog
@@ -447,19 +545,6 @@ function kernels__clean() # remove a kernel entry from the users catalog
         fi
 
     fi
-
-    # confirm "Removing: $targetname - $version :
-
-    # Are you sure? [Y/n]" && \
-    # user_catalog_tmp=$(mktemp) && \
-    # jq -r "del(.\"$targetname\".\"$version\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
-    # if [ $(jq -r ".\"$targetname\"" "$user_catalog") = "{}" ]; then
-    #     # if the removal of that version of $targetname results in there being no versions of targetname, remove the entire key.
-    #     user_catalog_tmp=$(mktemp) && \
-    #     jq -r "del(.\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
-    # fi
-    # check for existence of kernel in user catalog
-    # 
 }
 
 function kernels__remove() # remove a users copy of a kernel
@@ -476,7 +561,13 @@ function kernels__remove() # remove a users copy of a kernel
     echo "User Catalog:"
     echo $user_catalog
     echo ""
-
+ 
+    # Validate input parameters to prevent path traversal and wildcard attacks
+    if [[ "$targetname" =~ [\]\/\[\*\?\] ]] || [[ "$version" =~ [\]\/\[\*\?\] ]]; then
+        echo "Error: Invalid characters in kernel name or version. Cannot contain wildcards (*?[]) or path separators (/)"
+        exit 1  
+    fi
+    
     if [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
         help
         echo ""
@@ -501,11 +592,46 @@ function kernels__remove() # remove a users copy of a kernel
     fi
     echo "Removing package files, and kernel entries for: $@"
     confirm "Are you sure? [Y/n]"
-    target_unpacked=${ICRN_USER_KERNEL_BASE}/$targetname-$version/
-    if [ -e $target_unpacked ]; then
-        echo "would remove: $target_unpacked"
-        echo "via:"
-        echo "rm -rf $target_unpacked "
+    
+    # Construct the target path safely
+    # Create language-specific subdirectory structure
+    language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
+    target_unpacked="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
+    
+    # Additional safety check: ensure the path is within the intended directory
+    # Use realpath to resolve any potential symlinks and normalize the path
+    if command -v realpath >/dev/null 2>&1; then
+        resolved_target=$(realpath "$target_unpacked" 2>/dev/null)
+        resolved_base=$(realpath "$ICRN_USER_KERNEL_BASE" 2>/dev/null)
+        
+        if [ -n "$resolved_target" ] && [ -n "$resolved_base" ]; then
+            # Check if the resolved target path starts with the resolved base path
+            if [[ "$resolved_target" != "$resolved_base"* ]]; then
+                echo "Error: Security violation - target path would escape intended directory"
+                echo "Target: $resolved_target"
+                echo "Base: $resolved_base"
+                exit 1
+            fi
+        fi
+    fi
+    
+    # Final validation: ensure the path is within the kernel base directory
+    if [[ "$target_unpacked" != "$ICRN_USER_KERNEL_BASE"* ]]; then
+        echo "Error: Security violation - target path would escape intended directory"
+        echo "Target: $target_unpacked"
+        echo "Base: $ICRN_USER_KERNEL_BASE"
+        exit 1
+    fi
+    
+    if [ -e "$target_unpacked" ]; then
+        echo "Removing: $target_unpacked"
+        rm -rf "$target_unpacked"
+        if [ $? -eq 0 ]; then
+            echo "Successfully removed kernel files from: $target_unpacked"
+        else
+            echo "Error: Failed to remove kernel files from: $target_unpacked"
+            exit 1
+        fi
     else
         echo "Could not locate $target_unpacked - exiting..."
         exit 1
@@ -544,6 +670,21 @@ function kernels__init() # create base resources
     else
         echo "base icrn kernel exists at ${ICRN_USER_KERNEL_BASE}"
     fi
+    
+    # Create language-specific subdirectories
+    if [ ! -e ${ICRN_USER_KERNEL_BASE}/r ]; then
+        echo "creating ${ICRN_USER_KERNEL_BASE}/r"
+        mkdir -p ${ICRN_USER_KERNEL_BASE}/r
+    else
+        echo "R kernel directory exists at ${ICRN_USER_KERNEL_BASE}/r"
+    fi
+    
+    if [ ! -e ${ICRN_USER_KERNEL_BASE}/python ]; then
+        echo "creating ${ICRN_USER_KERNEL_BASE}/python"
+        mkdir -p ${ICRN_USER_KERNEL_BASE}/python
+    else
+        echo "Python kernel directory exists at ${ICRN_USER_KERNEL_BASE}/python"
+    fi
     if [ ! -e ${ICRN_USER_CATALOG} ]; then
         echo "creating ${ICRN_USER_CATALOG}"
         echo "{}" > ${ICRN_USER_CATALOG}
@@ -563,7 +704,7 @@ function kernels__init() # create base resources
         \"icrn_central_catalog_path\": \"${central_repository}\",
         \"icrn_r_kernels\": \"r_kernels\",
         \"icrn_python_kernels\": \"python_kernels\",
-	\"icrn_kernel_catalog\": \"icrn_kernel_catalog.json\"
+	    \"icrn_kernel_catalog\": \"icrn_kernel_catalog.json\"
         }" > $ICRN_MANAGER_CONFIG
         # non-append enables re-pointing of central repo via 'init' later
     else

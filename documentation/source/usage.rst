@@ -162,7 +162,7 @@ Examples:
 Common Workflows
 ----------------
 
-**Scenario 1: First-time setup and use**
+**Scenario 1: First-time setup and use (R)**
 
 .. code-block:: bash
 
@@ -178,7 +178,25 @@ Common Workflows
    # Use the kernel
    ./icrn_manager kernels use R cowsay 1.0
 
-**Scenario 2: Switching between kernels**
+**Scenario 2: First-time setup and use (Python)**
+
+.. code-block:: bash
+
+   # Initialize
+   ./icrn_manager kernels init /path/to/repo
+   
+   # See what's available
+   ./icrn_manager kernels available
+   
+   # Get a Python kernel
+   ./icrn_manager kernels get Python numpy 1.24.0
+   
+   # Use the kernel (this installs it in Jupyter)
+   ./icrn_manager kernels use Python numpy 1.24.0
+   
+   # The kernel is now available in Jupyter notebooks
+
+**Scenario 3: Switching between kernels**
 
 .. code-block:: bash
 
@@ -188,7 +206,7 @@ Common Workflows
    # Switch to different kernel
    ./icrn_manager kernels use R pecan 1.9
 
-**Scenario 3: Clean slate**
+**Scenario 4: Clean slate**
 
 .. code-block:: bash
 
@@ -200,6 +218,60 @@ Common Workflows
    
    # Or just clean catalog entries
    ./icrn_manager kernels clean R cowsay 1.0
+
+Python Kernel Specific Workflows
+--------------------------------
+
+**Python Kernel Installation and Use**
+
+Python kernels work differently from R kernels. When you use a Python kernel, it gets installed into your Jupyter environment:
+
+.. code-block:: bash
+
+   # Get a Python kernel
+   ./icrn_manager kernels get Python numpy 1.24.0
+   
+   # Use the kernel (installs it in Jupyter)
+   ./icrn_manager kernels use Python numpy 1.24.0
+   
+   # The kernel "numpy-1.24.0" is now available in Jupyter notebooks
+   # You can select it from the kernel menu in Jupyter
+
+**Python Kernel Removal**
+
+To remove Python kernels from Jupyter:
+
+.. code-block:: bash
+
+   # Remove all Python kernels from Jupyter
+   ./icrn_manager kernels use Python none
+   
+   # This uses 'jupyter kernelspec uninstall' to remove kernels
+
+**Python Kernel Management**
+
+Python kernels are stored in language-specific directories:
+
+.. code-block:: text
+
+   ~/.icrn/icrn_kernels/
+   ├── r/                    # R kernels
+   │   └── cowsay-1.0/
+   └── python/               # Python kernels
+       └── numpy-1.24.0/
+
+**Verifying Python Kernel Installation**
+
+You can verify that your Python kernel was installed correctly:
+
+.. code-block:: bash
+
+   # List all available Jupyter kernels
+   jupyter kernelspec list
+   
+   # You should see your kernel listed, e.g.:
+   # Available kernels:
+   #   numpy-1.24.0    /home/user/.local/share/jupyter/kernels/numpy-1.24.0
 
 Troubleshooting
 ---------------

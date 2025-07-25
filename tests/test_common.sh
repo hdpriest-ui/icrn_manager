@@ -26,6 +26,7 @@ if [ -z "$TOTAL_TESTS" ]; then
     PASSED_TESTS=0
     FAILED_TESTS=0
     SKIPPED_TESTS=0
+    FAILED_TEST_NAMES=()
 fi
 
 # Test results log
@@ -82,6 +83,7 @@ run_test() {
         print_status "FAIL" "$test_name: $description"
         log_test "$test_name" "FAIL" "$description"
         FAILED_TESTS=$((FAILED_TESTS + 1))
+        FAILED_TEST_NAMES+=("$test_name")
         return 1
     fi
 }
@@ -197,8 +199,21 @@ EOF
     echo "dummy content" > "$TEST_REPO/r_kernels/ggplot2/3.4.0/dummy.txt"
     tar -czf "$TEST_REPO/r_kernels/ggplot2/3.4.0/ggplot2-3.4.0.tar.gz" -C "$TEST_REPO/r_kernels/ggplot2/3.4.0" dummy.txt 2>/dev/null || true
     
+    # Create Python kernel mock with conda environment structure
+    mkdir -p "$TEST_REPO/python_kernels/numpy/1.24.0/bin"
     echo "dummy content" > "$TEST_REPO/python_kernels/numpy/1.24.0/dummy.txt"
-    tar -czf "$TEST_REPO/python_kernels/numpy/1.24.0/numpy-1.24.0.tar.gz" -C "$TEST_REPO/python_kernels/numpy/1.24.0" dummy.txt 2>/dev/null || true
+    echo "#!/bin/bash" > "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
+    echo "echo 'Activating conda environment'" >> "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
+    chmod +x "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
+    echo "#!/bin/bash" > "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
+    echo "echo 'Deactivating conda environment'" >> "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
+    chmod +x "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
+    tar -czf "$TEST_REPO/python_kernels/numpy/1.24.0/numpy-1.24.0.tar.gz" -C "$TEST_REPO/python_kernels/numpy/1.24.0" . 2>/dev/null || true
+    
+    # Create mock conda-unpack command
+    echo '#!/bin/bash' > "$TEST_BASE/conda-unpack"
+    echo 'echo "Running conda-unpack (mock)"' >> "$TEST_BASE/conda-unpack"
+    chmod +x "$TEST_BASE/conda-unpack"
     
     print_status "PASS" "Test environment setup complete"
 }
@@ -218,6 +233,8 @@ cleanup_test_env() {
 set_test_env() {
     export HOME="$TEST_USER_HOME"
     export ICRN_USER_BASE="$TEST_USER_HOME/.icrn"
+    export ICRN_USER_KERNEL_BASE="$TEST_USER_HOME/.icrn/icrn_kernels"
+    export ICRN_USER_CATALOG="$TEST_USER_HOME/.icrn/icrn_kernels/user_catalog.json"
 }
 
 # Function to print test summary
@@ -238,6 +255,12 @@ print_test_summary() {
         return 0
     else
         print_status "FAIL" "$FAILED_TESTS test(s) failed"
+        echo ""
+        echo "Failed Tests:"
+        for test_name in "${FAILED_TEST_NAMES[@]}"; do
+            echo "  - $test_name"
+        done
+        echo ""
         echo "Test log saved to: $TEST_LOG"
         return 1
     fi

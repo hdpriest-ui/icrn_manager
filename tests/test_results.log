@@ -1,34 +1,28 @@
-ICRN Manager Test Results - 2025-07-24 14:31:50
+ICRN Manager Test Results - kernels - 2025-07-25 14:24:50
 ==========================================
-[2025-07-24 14:31:50] PASS: help_command - Help command shows usage information
-[2025-07-24 14:31:50] PASS: invalid_command - Invalid command fails gracefully
-[2025-07-24 14:31:50] PASS: kernels_help - Kernels command without subcommand shows help
-[2025-07-24 14:31:51] PASS: kernels_init - Kernels init creates necessary directories and config
-[2025-07-24 14:31:51] PASS: kernels_available - Kernels available shows catalog contents
-[2025-07-24 14:31:51] PASS: kernels_list_empty - Kernels list shows empty user catalog initially
-[2025-07-24 14:31:51] PASS: kernels_get_python_fail - Kernels get Python fails gracefully (not implemented)
-[2025-07-24 14:31:51] PASS: kernels_get_r_fail - Kernels get R fails with mock data
-[2025-07-24 14:31:51] PASS: kernels_get_invalid_language - Kernels get fails with invalid language
-[2025-07-24 14:31:51] PASS: kernels_get_missing_params - Kernels get fails with missing parameters
-[2025-07-24 14:31:51] PASS: kernels_clean - Kernels clean removes entries from user catalog
-[2025-07-24 14:31:51] PASS: kernels_clean_missing_params - Kernels clean fails with missing parameters
-[2025-07-24 14:31:51] PASS: kernels_remove_missing_params - Kernels remove fails with missing parameters
-[2025-07-24 14:31:51] PASS: kernels_use_missing_params - Kernels use fails with missing parameters
-[2025-07-24 14:31:51] PASS: kernels_use_none - Kernels use handles 'none' parameter for R
-[2025-07-24 14:31:51] PASS: kernels_use_python_none - Kernels use handles 'none' parameter for Python
-[2025-07-24 14:31:55] PASS: update_r_libs_add - Update R libs adds kernel to .Renviron
-[2025-07-24 14:31:55] PASS: update_r_libs_remove - Update R libs removes kernels from .Renviron
-[2025-07-24 14:31:55] PASS: update_r_libs_overwrite - Update R libs overwrites existing kernel
-[2025-07-24 14:31:55] PASS: update_r_libs_missing_params - Update R libs fails with missing parameters
-[2025-07-24 14:31:55] PASS: update_r_libs_invalid_file - Update R libs handles invalid file paths
-[2025-07-24 14:31:55] PASS: update_r_libs_preserve_content - Update R libs preserves existing .Renviron content
-[2025-07-24 14:31:55] PASS: config_validation_missing_config - Commands fail without config file
-[2025-07-24 14:31:55] PASS: config_validation_missing_catalog - Commands fail without central catalog
-[2025-07-24 14:31:55] PASS: config_validation_missing_repository - Commands fail without repository
-[2025-07-24 14:31:55] PASS: config_validation_language_param - Commands fail with invalid language parameter
-[2025-07-24 14:31:55] PASS: config_validation_kernel_param - Commands fail with invalid kernel parameter
-[2025-07-24 14:31:55] PASS: config_validation_version_param - Commands fail with invalid version parameter
-[2025-07-24 14:31:55] PASS: config_json_structure - Config file has valid JSON structure
-[2025-07-24 14:31:55] PASS: user_catalog_json_structure - User catalog has valid JSON structure
-[2025-07-24 14:31:55] PASS: catalog_json_structure - Central catalog has valid JSON structure
-[2025-07-24 14:31:55] PASS: catalog_required_fields - Catalog has required fields for all kernels
+[2025-07-25 14:24:50] PASS: kernels_init - Kernels init creates necessary directories and config
+[2025-07-25 14:24:50] PASS: kernels_available - Kernels available shows catalog contents
+[2025-07-25 14:24:50] PASS: kernels_list_empty - Kernels list shows empty user catalog initially
+[2025-07-25 14:24:50] PASS: kernels_get_python_success - Kernels get Python succeeds with proper unpacking
+[2025-07-25 14:24:50] PASS: kernels_get_r_fail - Kernels get R fails with mock data
+[2025-07-25 14:24:50] PASS: kernels_get_invalid_language - Kernels get fails with invalid language
+[2025-07-25 14:24:50] PASS: kernels_get_missing_params - Kernels get fails with missing parameters
+[2025-07-25 14:24:50] PASS: kernels_clean - Kernels clean removes entries from user catalog
+[2025-07-25 14:24:50] PASS: kernels_clean_missing_params - Kernels clean fails with missing parameters
+[2025-07-25 14:24:50] PASS: kernels_remove_missing_params - Kernels remove fails with missing parameters
+[2025-07-25 14:24:50] PASS: kernels_use_missing_params - Kernels use fails with missing parameters
+[2025-07-25 14:24:50] PASS: kernels_use_none - Kernels use handles 'none' parameter for R
+[2025-07-25 14:24:50] PASS: kernels_use_python_success - Kernels use Python succeeds with proper kernel installation
+[2025-07-25 14:24:50] FAIL: kernels_use_python_none - Kernels use handles 'none' parameter for Python
+[2025-07-25 14:24:50] PASS: kernels_remove_wildcard_attack - Kernels remove rejects wildcard attacks
+[2025-07-25 14:24:50] PASS: kernels_remove_path_traversal_attack - Kernels remove rejects path traversal attacks
+[2025-07-25 14:24:50] PASS: kernels_remove_bracket_expansion_attack - Kernels remove rejects bracket expansion attacks
+[2025-07-25 14:24:50] PASS: kernels_remove_question_mark_attack - Kernels remove rejects question mark wildcard attacks
+[2025-07-25 14:24:50] PASS: kernels_remove_backslash_attack - Kernels remove rejects backslash escape attacks
+[2025-07-25 14:24:50] FAIL: kernels_remove_symlink_attack - Kernels remove handles symlink attacks safely
+[2025-07-25 14:24:50] FAIL: kernels_remove_careless_spaces - Kernels remove handles careless use with spaces
+[2025-07-25 14:24:50] PASS: kernels_remove_careless_empty_params - Kernels remove handles careless use with empty parameters
+[2025-07-25 14:24:50] PASS: kernels_remove_careless_special_chars - Kernels remove handles careless use with special characters
+[2025-07-25 14:24:50] PASS: kernels_get_wildcard_attack - Kernels get rejects wildcard attacks
+[2025-07-25 14:24:50] PASS: kernels_get_path_traversal_attack - Kernels get rejects path traversal attacks
+[2025-07-25 14:24:50] PASS: kernels_remove_successful_cleanup - Kernels remove setup validation for successful cleanup

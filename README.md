@@ -51,8 +51,9 @@ Alias:
 Example:
 ```sh
 ./icrn_manager kernels get R cowsay 1.0
+./icrn_manager kernels get Python numpy 1.24.0
 ```
-This command obtains the correct environment from the central repository, unpacks it, identifies the location of the R packages, and updates the user's catalogue with this information.
+This command obtains the correct environment from the central repository, unpacks it, identifies the location of the packages, and updates the user's catalogue with this information.
 
 ```sh
 ./icrn_manager kernels get R cowsay 1.0
@@ -87,6 +88,7 @@ Be sure to call "./icrn_manager kernels use R cowsay 1.0" to begin using this ke
 Example:
 ```sh
 ./icrn_manager kernels use R cowsay 1.0
+./icrn_manager kernels use Python numpy 1.24.0
 ```
 <img src="documentation/demo_resources/icrn_libraries_mngr_simple_use_cowsay.gif" align="center" width="600"/>
 
@@ -96,8 +98,18 @@ Desired kernel:
 Language: R
 Kernel: cowsay
 Version: 1.0
-checking for: /u/hdpriest/.icrn/icrn_kernels/cowsay-1.0/lib/R/library
+checking for: /u/hdpriest/.icrn/icrn_kernels/r/cowsay-1.0/lib/R/library
 Found existing link; removing...
+
+./icrn_manager kernels use Python numpy 1.24.0
+Desired kernel:
+Language: Python
+Kernel: numpy
+Version: 1.24.0
+Found. Activating Python kernel...
+Installing Python kernel: numpy-1.24.0
+Python kernel installation complete.
+Kernel 'numpy-1.24.0' is now available in Jupyter.
 /u/hdpriest/.icrn/icrn_kernels/cowsay
 Found. Linking and Activating...
 Using /u/hdpriest/.icrn_b/icrn_kernels/cowsay within R...
