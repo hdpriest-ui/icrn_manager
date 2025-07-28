@@ -103,7 +103,7 @@ Now you can use the kernel in Jupyter:
    
    Before the kernel appears, you might see only the default kernels:
 
-   .. image:: ../../images/Jupyter_kernels_noastro.png
+   .. image:: ../../_static/images/Jupyter_kernels_noastro.png
       :alt: Jupyter kernels list without astro kernel
       :width: 600px
 
@@ -111,7 +111,7 @@ Now you can use the kernel in Jupyter:
    
    After installing a new kernel, restart your Jupyter kernel to refresh the kernel list:
 
-   .. image:: ../../images/jupyter_restart_kernel.png
+   .. image:: ../../_static/images/jupyter_restart_kernel.png
       :alt: Restart kernel option in Jupyter
       :width: 600px
 
@@ -119,7 +119,7 @@ Now you can use the kernel in Jupyter:
    
    After restarting, you should see your new kernel in the kernel selection menu:
 
-   .. image:: ../../images/jupyter-kernels-astro-avail.png
+   .. image:: ../../_static/images/jupyter-kernels-astro-avail.png
       :alt: Jupyter kernels list with astro kernel available
       :width: 600px
 
@@ -127,7 +127,7 @@ Now you can use the kernel in Jupyter:
    
    Use the kernel menu to switch to your new Python kernel:
 
-   .. image:: ../../images/Jupyter-menu-change-kernel.png
+   .. image:: ../../_static/images/Jupyter-menu-change-kernel.png
       :alt: Jupyter menu to change kernel
       :width: 600px
 
@@ -135,7 +135,7 @@ Now you can use the kernel in Jupyter:
    
    Once selected, you should see the kernel name in the top right of your notebook:
 
-   .. image:: ../../images/jupyter_running_astro.png
+   .. image:: ../../_static/images/jupyter_running_astro.png
       :alt: Jupyter notebook running astro kernel
       :width: 600px
 
