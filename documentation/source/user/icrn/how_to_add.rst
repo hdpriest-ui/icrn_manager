@@ -1,5 +1,7 @@
 How to Add Jupyter Kernel (ICRN)
 ===============================
 
-.. note::
-   Instructions for adding a Jupyter kernel to your environment in ICRN are forthcoming. 
+For detailed instructions on adding and using kernels in ICRN, see:
+
+* :doc:`python_kernels` - Complete walkthrough for Python kernels
+* :doc:`r_kernels` - Instructions for R kernels 

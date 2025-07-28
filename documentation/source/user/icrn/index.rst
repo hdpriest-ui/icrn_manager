@@ -5,4 +5,5 @@ ICRN User Guide
    :maxdepth: 2
 
    r_kernels
+   python_kernels
    jupyter_kernel 
