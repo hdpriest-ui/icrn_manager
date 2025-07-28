@@ -74,4 +74,4 @@ The following environment variables can be set to override defaults:
 - ICRN_USER_KERNEL_BASE: User kernel directory (default: ~/.icrn/icrn_kernels)
 - ICRN_USER_CATALOG: User catalog file (default: ~/.icrn/icrn_kernels/user_catalog.json)
 
-For more details, see the :doc:`maintainer_guide`. 
+For more details, see the maintainer section. 

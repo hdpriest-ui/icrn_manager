@@ -18,7 +18,7 @@ An R kernel typically includes:
 - Documentation and examples
 - Version metadata
 
-For detailed instructions on creating R kernels, see the :doc:`maintainer_guide` section.
+For detailed instructions on creating R kernels, see the kernel creation documentation.
 
 Testing Kernels
 --------------
@@ -30,5 +30,30 @@ Before distributing kernels, ensure they:
 - Work with the ICRN Jupyter environment
 - Pass validation tests
 
+Adding Jupyter Pieces
+--------------------
+
+To make R kernels available in Jupyter, you need to create a kernel specification:
+
+1. **Create kernel spec directory**:
+   .. code-block:: bash
+
+      mkdir -p /path/to/kernel/spec/kernel.json
+
+2. **Create kernel.json**:
+   .. code-block:: json
+
+      {
+        "argv": ["R", "--slave", "-e", "IRkernel::main()"],
+        "display_name": "R (Kernel Name)",
+        "language": "R"
+      }
+
+3. **Install IRkernel**:
+   .. code-block:: r
+
+      install.packages("IRkernel")
+      IRkernel::installspec(name = "kernel_name", displayname = "R (Kernel Name)")
+
 .. note::
-   Detailed step-by-step instructions for creating R kernels are available in the maintainer guide. 
+   Detailed step-by-step instructions for creating R kernels are available in the kernel creation documentation. 

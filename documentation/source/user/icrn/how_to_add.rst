@@ -1,7 +1,26 @@
 How to Add Jupyter Kernel (ICRN)
 ===============================
 
-For detailed instructions on adding and using kernels in ICRN, see:
+To add a Jupyter kernel to your ICRN environment:
 
-* :doc:`python_kernels` - Complete walkthrough for Python kernels
-* :doc:`r_kernels` - Instructions for R kernels 
+1. **Get the kernel**:
+   .. code-block:: bash
+
+      icrn_manager kernels get Python <kernel_name> <version>
+
+2. **Use the kernel**:
+   .. code-block:: bash
+
+      icrn_manager kernels use Python <kernel_name> <version>
+
+3. **Verify installation**:
+   .. code-block:: bash
+
+      jupyter kernelspec list
+
+4. **Restart Jupyter**:
+   - In JupyterLab: Kernel → Restart All Kernels
+   - In Jupyter Notebook: Kernel → Restart
+
+.. note::
+   Always restart your Jupyter session after making changes to kernel configurations. 

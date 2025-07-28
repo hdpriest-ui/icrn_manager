@@ -1,6 +1,8 @@
 Campus Cluster Jupyter Kernels (User)
 ====================================
 
+This section provides user guides for Jupyter kernels on the Campus Cluster.
+
 .. toctree::
    :maxdepth: 1
 
