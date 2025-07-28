@@ -1,19 +1,21 @@
 # Where should we write the GIF?
-Output icrn_libraries_use.gif
+Output documentation/source/demo_resources/icrn_libraries.gif
 
-# Set up a 1200x600 terminal with 46px font.
+# Set up a 1200x600 terminal with 18px font.
 Set FontSize 18 
 Set Width 1200
 Set Height 600
+Set WindowBar Colorful
+Set TypingSpeed 20ms
 
-# Type a command in the terminal.
-Type "./icrn_manager libraries use pecan 1.9"
+# icrn_libraries.tape
+# This file contains the commands used to generate the animated GIF demonstration
+# of listing available kernels
 
-# Pause for dramatic effect...
-Sleep 500ms
-
-# Run the command by pressing enter.
+Type "./icrn_manager kernels available"
 Enter
+Sleep 2s
 
-# Admire the output for a bit.
-Sleep 5s
+Type "./icrn_manager kernels list"
+Enter
+Sleep 2s

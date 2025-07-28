@@ -1,0 +1,24 @@
+{
+  "R": {
+    "cowsay": {
+      "1.0": {
+        "conda-pack": "cowsay-1.0.tar.gz",
+        "description": "Test R kernel for cowsay package"
+      }
+    },
+    "ggplot2": {
+      "3.4.0": {
+        "conda-pack": "ggplot2-3.4.0.tar.gz",
+        "description": "Test R kernel for ggplot2 package"
+      }
+    }
+  },
+  "Python": {
+    "numpy": {
+      "1.24.0": {
+        "conda-pack": "numpy-1.24.0.tar.gz",
+        "description": "Test Python kernel for numpy package"
+      }
+    }
+  }
+}

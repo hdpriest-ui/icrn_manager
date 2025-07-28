@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script manages the checkout of libraries from a configured central repository
+# This script manages the checkout of kernels from a configured central repository
 # this script leverages 'update_r_libs.sh'
 
 # [[ $_ != $0 ]] && return
@@ -12,33 +12,36 @@ if [ -z $(type -p jq) ]; then
 fi
 
 icrn_base=".icrn"
-icrn_libs="icrn_libraries"
+icrn_kernels="icrn_kernels"
 central_catalog_default="/sw/icrn/jupyter/icrn_ncsa_resources/Kernels"
 
 ICRN_USER_BASE=${ICRN_USER_BASE:-${HOME}/${icrn_base}}
 ICRN_MANAGER_CONFIG=${ICRN_MANAGER_CONFIG:-${ICRN_USER_BASE}/manager_config.json}
-ICRN_USER_LIBRARY_BASE=${ICRN_USER_LIBRARY_BASE:-${ICRN_USER_BASE}/${icrn_libs}}
-ICRN_USER_CATALOG=${ICRN_USER_CATALOG:-${ICRN_USER_LIBRARY_BASE}/user_catalog.json}
+ICRN_USER_KERNEL_BASE=${ICRN_USER_KERNEL_BASE:-${ICRN_USER_BASE}/${icrn_kernels}}
+ICRN_USER_CATALOG=${ICRN_USER_CATALOG:-${ICRN_USER_KERNEL_BASE}/user_catalog.json}
 
 if [ ! -e ${ICRN_MANAGER_CONFIG} ]; then
     # if manager config json doesn't exist, we need to be in the 'init' call
-    if [ ! "$2"="init" ]; then
-        echo "You must run 'icrn_manager libraries init' prior to leveraging this tool."
+    if [ ! "$2" = "init" ]; then
+        echo "You must run 'icrn_manager kernels init' prior to leveraging this tool."
         exit 1
     fi
     # if the config doesn't exist, it will be created and populated during the init call
-    ICRN_LIBRARY_REPOSITORY=$central_catalog_default
-    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/R"
-    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/icrn_kernel_catalog.json"
+    ICRN_KERNEL_REPOSITORY=$central_catalog_default
+    ICRN_R_KERNELS=${ICRN_KERNEL_REPOSITORY}"/r_kernels"
+    ICRN_PYTHON_KERNELS=${ICRN_KERNEL_REPOSITORY}"/python_kernels"
+    ICRN_KERNEL_CATALOG=${ICRN_KERNEL_REPOSITORY}"/icrn_kernel_catalog.json"
 else
-    ICRN_LIBRARY_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
-    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_kernels\"" "${ICRN_MANAGER_CONFIG}")
-    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/"$(jq -r ".\"icrn_kernel_catalog\"" "${ICRN_MANAGER_CONFIG}")
-    if [ -z ${ICRN_LIBRARY_REPOSITORY} ] || [ -z ${ICRN_LIBRARIES} ] || [ -z ${ICRN_LIBRARY_CATALOG} ] ; then
-        echo "Problem with determining central library information - please check user manager config at ${ICRN_MANAGER_CONFIG}"
-        echo "ICRN Library base: ${ICRN_LIBRARY_REPOSITORY}"
-        echo "ICRN Libraries location:  ${ICRN_LIBRARIES}"
-        echo "ICRN catalog location: ${ICRN_LIBRARY_CATALOG}"
+    ICRN_KERNEL_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_R_KERNELS=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_r_kernels\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_PYTHON_KERNELS=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_python_kernels\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_KERNEL_CATALOG=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_kernel_catalog\"" "${ICRN_MANAGER_CONFIG}")
+    if [ -z ${ICRN_KERNEL_REPOSITORY} ] || [ -z ${ICRN_R_KERNELS} ] || [ -z ${ICRN_PYTHON_KERNELS} ] || [ -z ${ICRN_KERNEL_CATALOG} ] ; then
+        echo "Problem with determining central kernel information - please check user manager config at ${ICRN_MANAGER_CONFIG}"
+        echo "ICRN Kernel base: ${ICRN_KERNEL_REPOSITORY}"
+        echo "ICRN R Kernels location:  ${ICRN_R_KERNELS}"
+        echo "ICRN Python Kernels location:  ${ICRN_PYTHON_KERNELS}"
+        echo "ICRN catalog location: ${ICRN_KERNEL_CATALOG}"
         exit 1
     fi
 fi
@@ -63,18 +66,19 @@ last_check=-1
 check_for_catalog_entry() 
 {
     local catalog=$1; shift
+    local language=$1; shift
     local targetname=$1; shift
     if [ ! -z $1 ]; then
         local targetversion=$1; shift
     fi
     
-    if [ ! "$(jq -r ".\"$targetname\"" "$catalog")" = "null" ]; then
+    if [ ! "$(jq -r ".\"$language\".\"$targetname\"" "$catalog")" = "null" ]; then
         if [ ! -z $targetversion ]; then
             # we expect to find version if its provided
-            if [ ! "$(jq -r ".\"$targetname\".\"$targetversion\"" $catalog)" = "null" ]; then
+            if [ ! "$(jq -r ".\"$language\".\"$targetname\".\"$targetversion\"" $catalog)" = "null" ]; then
                 last_check=1
             else
-                echo "Found library for $targetname"
+                echo "Found kernel for $targetname"
                 echo "Could not find version: $targetversion"
                 last_check=0
             fi
@@ -92,9 +96,10 @@ check_for_catalog_entry()
 get_versions_for_package() 
 {
     local catalog=$1; shift
+    local language=$1; shift
     local targetname=$1; shift
     
-    check_for_catalog_entry $catalog $targetname
+    check_for_catalog_entry $catalog $language $targetname
     if [ $last_check = 0 ]; then
         echo "$targetname not present in catalog at $catalog"
         exit 1
@@ -102,157 +107,217 @@ get_versions_for_package()
         last_check=-1
     fi
 
-    available_versions=$(jq -r ".\"$targetname\"| keys[]" "$catalog")
+    available_versions=$(jq -r ".\"$language\".\"$targetname\"| keys[]" "$catalog")
     echo "Available versions for $targetname:"
     echo $available_versions
 }
 
-function libraries__available() # get a list of available libraries from the central repo
+function kernels__available() # get a list of available kernels from the central repo
 {
-    icrn_catalog=${ICRN_LIBRARY_CATALOG}
-    echo "Available libraries in ICRN catalog ($icrn_catalog):"
-    libraries=$(jq -r '. | keys[]' $icrn_catalog)
-    echo -e "Library\tVersion"
-    for lib in $libraries; do
-        versions=$(jq -r ".$lib | keys[]" $icrn_catalog)
+    icrn_catalog=${ICRN_KERNEL_CATALOG}
+    echo "Available kernels in ICRN catalog ($icrn_catalog):"
+    languages=$(jq -r '. | keys[]' $icrn_catalog)
+    echo -e "Language\tKernel\tVersion"
+    for language in $languages; do
+        kernels=$(jq -r ".$language | keys[]" $icrn_catalog)
+        for kernel in $kernels; do
+            versions=$(jq -r ".$language.$kernel | keys[]" $icrn_catalog)
         for version in $versions; do
-            echo -e $lib"\t"$version
+                echo -e $language"\t"$kernel"\t"$version
+            done
         done
     done
 }
-function libraries__avail() # alias for available
+function kernels__avail() # alias for available
 {
-    libraries__available "$@"
+    kernels__available "$@"
 }
 
-function libraries__list() # get the list of libraries already checked out and ready for use
+function kernels__list() # get the list of kernels already checked out and ready for use
 {
     user_catalog=${ICRN_USER_CATALOG}
-    echo "checked out libraries in in user catalog (${ICRN_USER_CATALOG}):"
-    libraries=$(jq -r '. | keys[]' $user_catalog)
-    echo -e "Library\tVersion"
-    for lib in $libraries; do
-        versions=$(jq -r ".$lib | keys[]" $user_catalog)
+    echo "checked out kernels in in user catalog (${ICRN_USER_CATALOG}):"
+    languages=$(jq -r '. | keys[]' $user_catalog)
+    echo -e "Language\tKernel\tVersion"
+    for language in $languages; do
+        kernels=$(jq -r ".$language | keys[]" $user_catalog)
+        for kernel in $kernels; do
+            versions=$(jq -r ".$language.$kernel | keys[]" $user_catalog)
         for version in $versions; do
-            echo -e $lib"\t"$version
+                echo -e $language"\t"$kernel"\t"$version
+            done
         done
     done
 }
 
-function libraries__use() # use a library which is already checked out
+function kernels__use() # use a kernel which is already checked out
 {
+    local language=$1; shift
     local targetname=$1; shift
     local version=$1; shift
+
+    # ensure we get a uc-first label for lang
+    language="$(tr '[:lower:]' '[:upper:]' <<< ${language:0:1})${language:1}"
 
     local target_r_environ_file=${HOME}"/.Renviron"
     # dependent on PATH VAR
     local target_r_libs_script="update_r_libs.sh"
 
     if [ "$targetname" = "none" ]; then
-        echo "Desired library: none"
-    elif [ -z $version ] || [ -z $targetname ]; then
-        echo "usage: icrn_manager libraries use <library name> <version number>"
+        echo "Desired kernel: none for $language"
+    elif [ -z $targetname ] || [ -z $language ]; then
+        echo "usage: icrn_manager kernels use <language> <kernel name> [version number]"
+        echo "       or: icrn_manager kernels use <language> none"
+        help
+        exit 1
+    elif [ -z $version ] && [ "$targetname" != "none" ]; then
+        echo "usage: icrn_manager kernels use <language> <kernel name> <version number>"
+        echo "       or: icrn_manager kernels use <language> none"
         help
         exit 1
     else
-        echo "Desired library:"
-        echo "Library: "$targetname
+        echo "Desired kernel:"
+        echo "Language: "$language
+        echo "Kernel: "$targetname
+        if [ "$targetname" != "none" ]; then
         echo "Version: "$version
+        fi
     fi
 
-    icrn_catalog=${ICRN_LIBRARY_CATALOG}
+    icrn_catalog=${ICRN_KERNEL_CATALOG}
     user_catalog=${ICRN_USER_CATALOG}
     # add in checking for various needed entities
-    # TODO: convert this to using the library-checking methods above
+    # TODO: convert this to using the kernel-checking methods above
     if [ "$targetname" = "none" ]; then
-        echo "Removing preconfigured libraries from R..."
-        ${target_r_libs_script} ${target_r_environ_file}
+        case $language in
+            "R")
+                echo "Removing preconfigured kernels from R..."
+                ${target_r_libs_script} ${target_r_environ_file}
+                ;;
+            "Python")
+                echo "Removing preconfigured kernels from Python..."
+                
+                # Get list of kernels from user catalog
+                user_catalog=${ICRN_USER_CATALOG}
+                if [ -f "$user_catalog" ]; then
+                    # Get all Python kernels from user catalog
+                    catalog_kernels=$(jq -r '.Python | to_entries[] | .key + "-" + (.value | to_entries[] | .key)' "$user_catalog" 2>/dev/null || echo "")
+                    
+                    if [ -n "$catalog_kernels" ]; then
+                        echo "Found Python kernels in user catalog: $catalog_kernels"
+                        
+                        # Get list of installed kernels from jupyter
+                        installed_kernels=$(jupyter kernelspec list --json 2>/dev/null | jq -r '.kernelspecs | keys[]' 2>/dev/null || echo "")
+                        
+                        if [ -n "$installed_kernels" ]; then
+                            echo "Found installed kernels."
+                            # echo "Found installed kernels: $installed_kernels"
+                            
+                            # Remove only kernels that are both in catalog and installed
+                            for catalog_kernel in $catalog_kernels; do
+                                if echo "$installed_kernels" | grep -q "^$catalog_kernel$"; then
+                                    echo "Removing kernel: $catalog_kernel"
+                                    jupyter kernelspec uninstall -y "$catalog_kernel" 2>/dev/null || echo "Failed to remove kernel: $catalog_kernel"
+                                else
+                                    echo "Kernel $catalog_kernel not found in jupyter kernelspec list, skipping"
+                                fi
+                            done
+                        else
+                            echo "No installed kernels found in jupyter kernelspec list"
+                        fi
+                    else
+                        echo "No Python kernels found in user catalog"
+                    fi
+                else
+                    echo "User catalog not found"
+                fi
+                
+                echo "Python kernel removal complete"
+                ;;
+            *)
+                echo "Unsupported language '$language' for kernel removal"
+                echo "Supported languages: R, Python"
+                exit 1
+                ;;
+        esac
     else
-        target_library_link_path=${ICRN_USER_LIBRARY_BASE}/${targetname}
-        absolute_path=$(jq -r ".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalog)
+        absolute_path=$(jq -r ".\"$language\".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalog)
         echo "checking for: "$absolute_path
-        if [ -e "$target_library_link_path" ]; then
-            echo "Found existing link; removing..."
-            echo "$target_library_link_path"
-            rm -f "$target_library_link_path"
-        fi
-        if [ -d "$absolute_path" ]; then
-            echo "Found. Linking and Activating..."
-            ln -s $absolute_path $target_library_link_path 
-            ${target_r_libs_script} ${target_r_environ_file} $targetname
-            echo "Done."
-        else
-            echo "Path could not be found. There is a problem with your user catalog."
-            echo "Consider cleaning the entry in your catalog via: ./icrn_manager libraries clean $targetname $version"
-            echo "And then checking out the library again."
-            exit 1
-        fi
+        
+        case $language in
+            "R")
+                target_kernel_link_path=${ICRN_USER_KERNEL_BASE}/${targetname}
+                if [ -e "$target_kernel_link_path" ]; then
+                    echo "Found existing link; removing..."
+                    echo "$target_kernel_link_path"
+                    rm -f "$target_kernel_link_path"
+                fi
+                if [ -d "$absolute_path" ]; then
+                    echo "Found. Linking and Activating..."
+                    ln -s $absolute_path $target_kernel_link_path 
+                    ${target_r_libs_script} ${target_r_environ_file} $targetname
+                    echo "Done."
+                else
+                    echo "Path could not be found. There is a problem with your user catalog."
+                    echo "Consider cleaning the entry in your catalog via: ./icrn_manager kernels clean $language $targetname $version"
+                    echo "And then checking out the kernel again."
+                    exit 1
+                fi
+                ;;
+            "Python")
+                if [ -d "$absolute_path" ]; then
+                    echo "Found. Activating Python kernel..."
+                    
+                    # Check if kernel is already installed
+                    kernel_name="${targetname}-${version}"
+                    display_name="${targetname} ${version}"
+                    
+                    # Check if kernel already exists
+                    if jupyter kernelspec list 2>/dev/null | grep -q "^$kernel_name\$"; then
+                        echo "Kernel $kernel_name already exists. Removing..."
+                        jupyter kernelspec uninstall -y "$kernel_name" 2>/dev/null || echo "Failed to remove existing kernel"
+                    fi
+                    
+                    # Activate the conda environment and install the kernel
+                    echo "Installing Python kernel: $kernel_name"
+                    source "$absolute_path/bin/activate"
+                    
+                    # Install the kernel
+                    python -m ipykernel install --user --name "$kernel_name" --display-name="$display_name" 2>/dev/null
+                    
+                    # Deactivate the environment
+                    source "$absolute_path/bin/deactivate"
+                    
+                    echo "Python kernel installation complete."
+                    echo "Kernel '$kernel_name' is now available in Jupyter."
+                else
+                    echo "Path could not be found. There is a problem with your user catalog."
+                    echo "Consider cleaning the entry in your catalog via: ./icrn_manager kernels clean $language $targetname $version"
+                    echo "And then checking out the kernel again."
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "Unsupported language '$language' for kernel activation"
+                echo "Supported languages: R, Python"
+                exit 1
+                ;;
+        esac
     fi
 }
 
-function libraries__activate() # alias for use
+function kernels__activate() # alias for use
 {
-    "libraries__use" "$@"
+    "kernels__use" "$@"
 }
 
-function libraries__get() # get a library from the central repo
+function unpack_r_kernel() # unpack and configure an R kernel environment
 {
+    local target_unpacked=$1; shift
+    local language=$1; shift
     local targetname=$1; shift
     local version=$1; shift
-
-    if [ -z $version ] || [ -z $targetname ]; then
-        echo "usage: icrn_manager libraries get <library name> <version number>"
-        help
-        exit 1
-    else
-        echo "Desired library:"
-        echo "Library: "$targetname
-        echo "Version: "$version
-        
-    fi
-    icrn_catalog=${ICRN_LIBRARY_CATALOG}
-    user_catalog=${ICRN_USER_CATALOG}
-    echo ""
-    echo "ICRN Catalog:"
-    echo $icrn_catalog
-    echo "User Catalog:"
-    echo $user_catalog
-    echo ""
-    # jqstring=".$targetname.\"$version\".\"conda-pack\""
-    # todo:
-    # add test: is the targetname valid?
-    # add test: is the version number valid?
-    # TODO: convert this to using the library-checking methods above
-    # get the target file from the ICRN catalog
-    target_file=$(jq -r ".$targetname.\"$version\".\"conda-pack\"" $icrn_catalog)
-    if [ ! "$target_file" = "null" ]; then
-        pack_filepath=${ICRN_LIBRARIES}/$targetname/$version/$target_file
-        if [ -e $pack_filepath ]; then
-            # identify target location, make it if it doesn't exist, and then unpack to it
-            target_unpacked=${ICRN_USER_LIBRARY_BASE}/$targetname-$version/
-            if [ ! -d $target_unpacked ]; then
-                echo "Making target directory: $target_unpacked"
-                mkdir -p $target_unpacked
-                echo "Checking out library..."
-                tar -xzf $pack_filepath -C $target_unpacked
-            else
-                echo "WARNING: target directory: $target_unpacked already exists!"
-                echo "Overwriting existing files from packed library..."
-                tar -xzf $pack_filepath -U -C $target_unpacked
-                echo "Note that this risks leaving this library in an intermediate state."
-                echo "It is recommended that you remove the library entirely by running:"
-                echo "'rm -rf $target_unpacked'"
-            fi
-        else
-            echo "ERROR: could not find target pack file: $pack_filepath"
-        fi
-    else
-        echo "ERROR: could not find target library to get"
-        get_versions_for_package "$icrn_catalog" "$targetname"
-        exit 1
-    fi
-    # activate conda env
-    # unpack conda env
+    
     echo checking for: $target_unpacked"/bin/activate"
     if [ -e $target_unpacked"bin/activate" ]; then
         echo "activating environment"
@@ -260,51 +325,180 @@ function libraries__get() # get a library from the central repo
         echo "doing unpack"
         conda-unpack
         # WARNING: this is weak - relies on preparer and environment ensuring this is top slot
-        # --vanilla ensures that we aren't interpreting an existing library-fu environment variable
+        # --vanilla ensures that we aren't interpreting an existing kernel-fu environment variable
         # "R_HOME=''" ensures we don't get complaints from R that R_HOME is set, but we're calling a Rscript that isn't located there
-        # we want to get a very plain readout of where this R install's main library is.
+        # we want to get a very plain readout of where this R install's main kernel is.
         echo "getting R path."
-	    target_library_path=$(R_HOME='' Rscript --vanilla -e 'cat(.libPaths()[1])')
-        echo "determined: $target_library_path"
+	    target_kernel_path=$(R_HOME='' Rscript --vanilla -e 'cat(.libPaths()[1])')
+        echo "determined: $target_kernel_path"
         echo "deactivating"
         source $target_unpacked"/bin/deactivate"
-        # not doing this step: just because a user wants to get an env, doesn't mean they want to over-ride their current setting for that env
-        # echo "updating environment"
-        # ln -s $target_unpacked ${ICRN_USER_LIBRARY_BASE}/$targetname 
-    
-        echo "Updating user's catalog with $targetname and $version"
+        
+        echo "Updating user's catalog with $language $targetname and $version"
         user_catalog_tmp=$(mktemp)
-        jq -r ".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_library_path\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
-        # Add in a conda freeze ability to populate "manifest":[] with list of packages within lib
-        # or maybe a R-namespace function via Rscript (like above) to get the R-packages, since this is currently an R package manager
-
-        # yeah we actually shouldn't do this yet - maybe just get the thing, don't activate it
-        # ./update_r_libs.sh ~/.Renviron $targetname
+        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_kernel_path\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        
         echo "Done."
         echo ""
-        echo "Be sure to call \"icrn_manager libraries use $targetname $version\" to begin using this library in R."
+        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in R."
+        return 0
+    else
+        echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
+        return 1
     fi
 }
 
-function libraries__update() # update users copy of a library from central repo
+function unpack_python_kernel() # unpack and configure a Python kernel environment
 {
-    echo "entered 'update' subcommand"
-    echo "method not yet implemented."
-    exit 1
-    # check for target version in central
-    # check for target version in user's
-    # if both present
-    # remove users
-    # get target from central
+    local target_unpacked=$1; shift
+    local language=$1; shift
+    local targetname=$1; shift
+    local version=$1; shift
     
+    echo checking for: $target_unpacked"bin/activate"
+    if [ -e $target_unpacked"bin/activate" ]; then
+        echo "activating environment"
+        source $target_unpacked"bin/activate"
+        chmod -R u+w $target_unpacked
+        echo "doing unpack"
+        conda-unpack
+        echo "deactivating"
+        source $target_unpacked"/bin/deactivate"
+        
+        echo "Updating user's catalog with $language $targetname and $version"
+        user_catalog_tmp=$(mktemp)
+        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_unpacked\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        
+        echo "Done."
+        echo ""
+        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in Python."
+        return 0
+    else
+        echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
+        return 1
+    fi
 }
 
-function libraries__clean() # remove a library entry from the users catalog
+function kernels__get() # get a kernel from the central repo
 {
+    local language=$1; shift
     local targetname=$1; shift
     local version=$1; shift
 
-    icrn_catalog=${ICRN_LIBRARY_CATALOG}
+    # ensure we get a uc-first label for lang
+    language="$(tr '[:lower:]' '[:upper:]' <<< ${language:0:1})${language:1}"
+
+    # Validate input parameters to prevent path traversal and wildcard attacks
+    if [[ "$targetname" =~ [\]\/\[\*\?\\] ]] || [[ "$version" =~ [\]\/\[\*\?\\] ]]; then
+        echo "Error: Invalid characters in kernel name or version. Cannot contain wildcards (*?[]) or path separators (/)"
+        exit 1
+    fi
+    
+    if [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
+        echo "usage: icrn_manager kernels get <language> <kernel name> <version number>"
+        help
+        exit 1
+    else
+        echo "Desired kernel:"
+        echo "Language: "$language
+        echo "Kernel: "$targetname
+        echo "Version: "$version
+        
+    fi
+    icrn_catalog=${ICRN_KERNEL_CATALOG}
+    user_catalog=${ICRN_USER_CATALOG}
+    echo ""
+    echo "ICRN Catalog:"
+    echo $icrn_catalog
+    echo "User Catalog:"
+    echo $user_catalog
+    echo ""
+    
+    # get the target file from the ICRN catalog
+    target_file=$(jq -r ".$language.$targetname.\"$version\".\"conda-pack\"" $icrn_catalog)
+    if [ ! "$target_file" = "null" ]; then
+        # Determine the appropriate kernel path based on language
+        case $language in
+            "R")
+                pack_filepath=${ICRN_R_KERNELS}/$targetname/$version/$target_file
+                ;;
+            "Python")
+                pack_filepath=${ICRN_PYTHON_KERNELS}/$targetname/$version/$target_file
+                ;;
+            *)
+                echo "ERROR: Unsupported language '$language' for kernel unpacking"
+                echo "Supported languages: R, Python"
+                exit 1
+                ;;
+        esac
+        
+        if [ -e $pack_filepath ]; then
+            # identify target location, make it if it doesn't exist, and then unpack to it
+            # Create language-specific subdirectory structure
+            language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
+            target_unpacked="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
+            
+            # Safety check: ensure the path is within the intended directory
+            if [[ "$target_unpacked" != "$ICRN_USER_KERNEL_BASE"* ]]; then
+                echo "Error: Security violation - target path would escape intended directory"
+                echo "Target: $target_unpacked"
+                echo "Base: $ICRN_USER_KERNEL_BASE"
+                exit 1
+            fi
+            
+            if [ ! -d "$target_unpacked" ]; then
+                echo "Making target directory: $target_unpacked"
+                mkdir -p "$target_unpacked"
+                echo "Checking out kernel..."
+                tar -xzf "$pack_filepath" -C "$target_unpacked"
+            else
+                echo "WARNING: target directory: $target_unpacked already exists!"
+                echo "Overwriting existing files from packed kernel..."
+                tar -xzf "$pack_filepath" -U -C "$target_unpacked"
+                echo "Note that this risks leaving this kernel in an intermediate state."
+                echo "It is recommended that you remove the kernel entirely by running:"
+                echo "'rm -rf $target_unpacked'"
+            fi
+            
+            # Use language-specific unpacking function
+            case $language in
+                "R")
+                    unpack_r_kernel "$target_unpacked" "$language" "$targetname" "$version"
+                    ;;
+                "Python")
+                    unpack_python_kernel "$target_unpacked" "$language" "$targetname" "$version"
+                    ;;
+                *)
+                    echo "ERROR: Unsupported language '$language' for kernel unpacking"
+                    echo "Supported languages: R, Python"
+                    exit 1
+                    ;;
+            esac
+        else
+            echo "ERROR: could not find target pack file: $pack_filepath"
+            exit 1
+        fi
+    else
+        echo "ERROR: could not find target kernel to get"
+        get_versions_for_package "$icrn_catalog" "$language" "$targetname"
+        exit 1
+    fi
+}
+
+function kernels__update() # update users copy of a kernel from central repo
+{
+    echo "entered 'update' subcommand"
+    echo "method not yet implemented."
+    exit 1    
+}
+
+function kernels__clean() # remove a kernel entry from the users catalog
+{
+    local language=$1; shift
+    local targetname=$1; shift
+    local version=$1; shift
+
+    icrn_catalog=${ICRN_KERNEL_CATALOG}
     user_catalog=${ICRN_USER_CATALOG}
     echo ""
     echo "ICRN Catalog:"
@@ -314,17 +508,18 @@ function libraries__clean() # remove a library entry from the users catalog
     echo ""
 
 
-    if [ -z "$version" ] && [ -z "$targetname" ]; then
-        echo "usage: icrn_manager libraries clean <library name> <version number>"
+    if [ -z "$version" ] && [ -z "$targetname" ] && [ -z "$language" ]; then
+        echo "usage: icrn_manager kernels clean <language> <kernel name> <version number>"
         help
         exit 1
     else
-        echo "Desired library to scrub from user catalog:"
-        echo "Library: "$targetname
+        echo "Desired kernel to scrub from user catalog:"
+        echo "Language: "$language
+        echo "Kernel: "$targetname
         echo "Version: "$version
         echo ""
     fi
-    check_for_catalog_entry "$user_catalog" "$targetname"
+    check_for_catalog_entry "$user_catalog" "$language" "$targetname"
     if [ $last_check = 0 ]; then
         echo "$targetname not present in user catalog at $user_catalog"
         exit 1
@@ -334,47 +529,35 @@ function libraries__clean() # remove a library entry from the users catalog
 
     if [ -z "$version" ]; then
         user_catalog_tmp=$(mktemp) && \
-        jq -r "del(.\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        jq -r "del(.\"$language\".\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
 
     else
-        check_for_catalog_entry "$user_catalog" "$targetname" "$version"
+        check_for_catalog_entry "$user_catalog" "$language" "$targetname" "$version"
         if [ $last_check = 0 ]; then
             echo "$version for $targetname not present in user catalog at $user_catalog"
-            get_versions_for_package $user_catalog $targetname
+            get_versions_for_package $user_catalog $language $targetname
             exit 1
         else
             last_check=-1
         fi
         user_catalog_tmp=$(mktemp) && \
-        jq -r "del(.\"$targetname\".\"$version\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
-        if [ $(jq -r ".\"$targetname\"" "$user_catalog") = "{}" ]; then
+        jq -r "del(.\"$language\".\"$targetname\".\"$version\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        if [ $(jq -r ".\"$language\".\"$targetname\"" "$user_catalog") = "{}" ]; then
             # if the removal of that version of $targetname results in there being no versions of targetname, remove the entire key.
             user_catalog_tmp=$(mktemp) && \
-            jq -r "del(.\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+            jq -r "del(.\"$language\".\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
         fi
 
     fi
-
-    # confirm "Removing: $targetname - $version :
-
-    # Are you sure? [Y/n]" && \
-    # user_catalog_tmp=$(mktemp) && \
-    # jq -r "del(.\"$targetname\".\"$version\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
-    # if [ $(jq -r ".\"$targetname\"" "$user_catalog") = "{}" ]; then
-    #     # if the removal of that version of $targetname results in there being no versions of targetname, remove the entire key.
-    #     user_catalog_tmp=$(mktemp) && \
-    #     jq -r "del(.\"$targetname\")" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
-    # fi
-    # check for existence of library in user catalog
-    # 
 }
 
-function libraries__remove() # remove a users copy of a library
+function kernels__remove() # remove a users copy of a kernel
 {
+    local language=$1; shift
     local targetname=$1; shift
     local version=$1; shift
 
-    icrn_catalog=${ICRN_LIBRARY_CATALOG}
+    icrn_catalog=${ICRN_KERNEL_CATALOG}
     user_catalog=${ICRN_USER_CATALOG}
     echo ""
     echo "ICRN Catalog:"
@@ -382,45 +565,87 @@ function libraries__remove() # remove a users copy of a library
     echo "User Catalog:"
     echo $user_catalog
     echo ""
-
-    if [ -z $version ] || [ -z $targetname ]; then
+ 
+    # Validate input parameters to prevent path traversal and wildcard attacks
+    if [[ "$targetname" =~ [\]\/\[\*\?\] ]] || [[ "$version" =~ [\]\/\[\*\?\] ]]; then
+        echo "Error: Invalid characters in kernel name or version. Cannot contain wildcards (*?[]) or path separators (/)"
+        exit 1  
+    fi
+    
+    if [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
         help
         echo ""
-        echo "Can't proceed without both a target library and version."
-        echo "usage: icrn_manager libraries remove <library name> <version number>"
+        echo "Can't proceed without language, target kernel and version."
+        echo "usage: icrn_manager kernels remove <language> <kernel name> <version number>"
         echo ""
         exit 1
     else
-        echo "Desired library to scrub from user catalog:"
-        echo "Library: "$targetname
+        echo "Desired kernel to scrub from user catalog:"
+        echo "Language: "$language
+        echo "Kernel: "$targetname
         echo "Version: "$version
         echo ""
     fi
-    check_for_catalog_entry "$user_catalog" "$targetname" "$version"
+    check_for_catalog_entry "$user_catalog" "$language" "$targetname" "$version"
     if [ $last_check = 0 ]; then
         echo "$targetname and $version not present in user catalog at $user_catalog"
-        get_versions_for_package $user_catalog $targetname
+        get_versions_for_package $user_catalog $language $targetname
         exit 1
     else
         last_check=-1
     fi
-    echo "Removing package files, and library entries for: $@"
+    echo "Removing package files, and kernel entries for: $@"
     confirm "Are you sure? [Y/n]"
-    target_unpacked=${ICRN_USER_LIBRARY_BASE}/$targetname-$version/
-    if [ -e $target_unpacked ]; then
-        echo "would remove: $target_unpacked"
-        echo "via:"
-        echo "rm -rf $target_unpacked "
+    
+    # Construct the target path safely
+    # Create language-specific subdirectory structure
+    language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
+    target_unpacked="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
+    
+    # Additional safety check: ensure the path is within the intended directory
+    # Use realpath to resolve any potential symlinks and normalize the path
+    if command -v realpath >/dev/null 2>&1; then
+        resolved_target=$(realpath "$target_unpacked" 2>/dev/null)
+        resolved_base=$(realpath "$ICRN_USER_KERNEL_BASE" 2>/dev/null)
+        
+        if [ -n "$resolved_target" ] && [ -n "$resolved_base" ]; then
+            # Check if the resolved target path starts with the resolved base path
+            if [[ "$resolved_target" != "$resolved_base"* ]]; then
+                echo "Error: Security violation - target path would escape intended directory"
+                echo "Target: $resolved_target"
+                echo "Base: $resolved_base"
+                exit 1
+            fi
+        fi
+    fi
+    
+    # Final validation: ensure the path is within the kernel base directory
+    if [[ "$target_unpacked" != "$ICRN_USER_KERNEL_BASE"* ]]; then
+        echo "Error: Security violation - target path would escape intended directory"
+        echo "Target: $target_unpacked"
+        echo "Base: $ICRN_USER_KERNEL_BASE"
+        exit 1
+    fi
+    
+    if [ -e "$target_unpacked" ]; then
+        echo "Removing: $target_unpacked"
+        rm -rf "$target_unpacked"
+        if [ $? -eq 0 ]; then
+            echo "Successfully removed kernel files from: $target_unpacked"
+        else
+            echo "Error: Failed to remove kernel files from: $target_unpacked"
+            exit 1
+        fi
     else
         echo "Could not locate $target_unpacked - exiting..."
         exit 1
     fi
-    libraries__clean "$targetname" "$version"
+    kernels__clean "$language" "$targetname" "$version"
 }
 
-function libraries__init() # create base resources
+function kernels__init() # create base resources
 {
-    echo "Initializing icrn library resources..."
+    echo "Initializing icrn kernel resources..."
     local central_repository=$1; shift
     overwrite=""
     if [ -z $central_repository ]; then
@@ -434,7 +659,7 @@ function libraries__init() # create base resources
     echo ""
     # check for existence of 
     #~{HOME}/.icrn/
-    #~{HOME}/.icrn/icrn_libraries/
+    #~{HOME}/.icrn/icrn_kernels/
     #~{HOME}/.icrn/user_catalog.json
     echo "Checking for user resources, and creating them if they don't exist..."
     if [ ! -e ${ICRN_USER_BASE}/ ]; then
@@ -443,11 +668,26 @@ function libraries__init() # create base resources
     else
         echo "base icrn directory exists at ${ICRN_USER_BASE}/"
     fi
-    if [ ! -e ${ICRN_USER_LIBRARY_BASE} ]; then
-        echo "creating ${ICRN_USER_LIBRARY_BASE}"
-        mkdir -p ${ICRN_USER_LIBRARY_BASE}
+    if [ ! -e ${ICRN_USER_KERNEL_BASE} ]; then
+        echo "creating ${ICRN_USER_KERNEL_BASE}"
+        mkdir -p ${ICRN_USER_KERNEL_BASE}
     else
-        echo "base icrn library exists at ${ICRN_USER_LIBRARY_BASE}"
+        echo "base icrn kernel exists at ${ICRN_USER_KERNEL_BASE}"
+    fi
+    
+    # Create language-specific subdirectories
+    if [ ! -e ${ICRN_USER_KERNEL_BASE}/r ]; then
+        echo "creating ${ICRN_USER_KERNEL_BASE}/r"
+        mkdir -p ${ICRN_USER_KERNEL_BASE}/r
+    else
+        echo "R kernel directory exists at ${ICRN_USER_KERNEL_BASE}/r"
+    fi
+    
+    if [ ! -e ${ICRN_USER_KERNEL_BASE}/python ]; then
+        echo "creating ${ICRN_USER_KERNEL_BASE}/python"
+        mkdir -p ${ICRN_USER_KERNEL_BASE}/python
+    else
+        echo "Python kernel directory exists at ${ICRN_USER_KERNEL_BASE}/python"
     fi
     if [ ! -e ${ICRN_USER_CATALOG} ]; then
         echo "creating ${ICRN_USER_CATALOG}"
@@ -457,7 +697,7 @@ function libraries__init() # create base resources
     fi
 
     # Manager config is json, holds location of the central repo (for now), and sub-paths
-    # user calls ./icrn_manager libraries init <path to central repo>
+    # user calls ./icrn_manager kernels init <path to central repo>
     # or omits path, and central repo is defaulted to value above
     # regardless, config must be written in the user's ICRN location for future reference
     # user may edit config to repoint to new central repo
@@ -466,56 +706,68 @@ function libraries__init() # create base resources
         echo "creating ${ICRN_MANAGER_CONFIG}"
         echo "{
         \"icrn_central_catalog_path\": \"${central_repository}\",
-        \"icrn_r_kernels\": \"R\",
-        \"icrn_python_kernels\": \"Python\",
-	\"icrn_kernel_catalog\": \"icrn_kernel_catalog.json\"
+        \"icrn_r_kernels\": \"r_kernels\",
+        \"icrn_python_kernels\": \"python_kernels\",
+	    \"icrn_kernel_catalog\": \"icrn_kernel_catalog.json\"
         }" > $ICRN_MANAGER_CONFIG
         # non-append enables re-pointing of central repo via 'init' later
     else
         echo "Configuration for manager exists at ${ICRN_MANAGER_CONFIG}"
     fi
     echo ""
-    if [ -n overwrite ]; then
+    if [ -n "$overwrite" ]; then
 	echo "Updating location of central catalog to: $central_repository"
         user_catalog_tmp=$(mktemp)
         jq -r ".\"icrn_central_catalog_path\"=\"$central_repository\"" "${ICRN_MANAGER_CONFIG}" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "${ICRN_MANAGER_CONFIG}"
     fi 
     echo ""
-    ICRN_LIBRARY_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
-    ICRN_LIBRARIES=${ICRN_LIBRARY_REPOSITORY}"/"$(jq -r ".\"icrn_r_kernels\"" "${ICRN_MANAGER_CONFIG}")
-    ICRN_LIBRARY_CATALOG=${ICRN_LIBRARIES}"/"$(jq -r ".\"icrn_kernel_catalog\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_KERNEL_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_R_KERNELS=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_r_kernels\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_PYTHON_KERNELS=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_python_kernels\"" "${ICRN_MANAGER_CONFIG}")
+    ICRN_KERNEL_CATALOG=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_kernel_catalog\"" "${ICRN_MANAGER_CONFIG}")
 
     echo "Checking for ICRN resources..."
-    if [ ! -e ${ICRN_LIBRARY_REPOSITORY} ]; then
-        echo "Warning: Cannot find core library base directory at: $ICRN_LIBRARY_REPOSITORY"
+    if [ ! -e ${ICRN_KERNEL_REPOSITORY} ]; then
+        echo "Warning: Cannot find core kernel base directory at: $ICRN_KERNEL_REPOSITORY"
     else
-        echo "Found core library base directory: $ICRN_LIBRARY_REPOSITORY"
+        echo "Found core kernel base directory: $ICRN_KERNEL_REPOSITORY"
     fi
-    if [ ! -e ${ICRN_LIBRARIES} ]; then
-        echo "Warning: Cannot find core library R root at: $ICRN_LIBRARIES" 
+    if [ ! -e ${ICRN_R_KERNELS} ]; then
+        echo "Warning: Cannot find core kernel R root at: $ICRN_R_KERNELS" 
     else
-        echo "Found core library R root: $ICRN_LIBRARIES"
-    fi   
-    if [ ! -e ${ICRN_LIBRARY_CATALOG} ]; then
-        echo "Warning: Cannot find core library catalog at: $ICRN_LIBRARY_CATALOG"
+        echo "Found core kernel R root: $ICRN_R_KERNELS"
+    fi
+    if [ ! -e ${ICRN_PYTHON_KERNELS} ]; then
+        echo "Warning: Cannot find core kernel Python root at: $ICRN_PYTHON_KERNELS" 
     else
-        echo "Found core library catalog at: $ICRN_LIBRARY_CATALOG"
+        echo "Found core kernel Python root: $ICRN_PYTHON_KERNELS"
+    fi
+    if [ ! -e ${ICRN_KERNEL_CATALOG} ]; then
+        echo "Warning: Cannot find core kernel catalog at: $ICRN_KERNEL_CATALOG"
+    else
+        echo "Found core kernel catalog at: $ICRN_KERNEL_CATALOG"
     fi
     echo "Done."
     echo ""
 }
 
-function libraries() # launcher
+function kernels() # launcher
 {
     local cmdname=$1; shift
-    if [ $cmdname = "remove" ]; then
-        libraries__remove "$@"
-    elif [ $cmdname = "clean" ]; then
-        echo "Removing library entries for : $@"
+    if [ -z "$cmdname" ]; then
+        echo ""
+        echo Error: No subcommand specified.
+        echo ""
+        help
+        exit 1
+    elif [ "$cmdname" = "remove" ]; then
+        kernels__remove "$@"
+    elif [ "$cmdname" = "clean" ]; then
+        echo "Removing kernel entries for : $@"
         confirm "Are you sure? [Y/n]"
-        libraries__clean "$@"
-    elif [ ! -z "$(grep 'function libraries__'${cmdname} $0)" ]; then
-        "libraries__$cmdname" "$@"
+        kernels__clean "$@"
+    elif [ ! -z "$(grep 'function kernels__'${cmdname} $0)" ]; then
+        "kernels__$cmdname" "$@"
     else
         echo ""
         echo Error: $cmdname is not a valid subfunction name.
@@ -531,49 +783,50 @@ function help() # Show a list of functions
     # grep "^function" $0
     echo ""
     echo "usage: "
-    echo " $0 libraries <subcommand>"
+    echo " $0 kernels <subcommand>"
     echo "    init"
     echo "    update"
     echo "    list"
     echo "    available"
-    echo "    get <library> <version>"
+    echo "    get <language> <kernel> <version>"
     echo "    remove"
-    echo "    use <library> <version>"
+    echo "    use <language> <kernel> <version>"
+    echo "    use <language> none"
     echo " "
     echo " "
 }
 
 # check for valid function
 if declare -f "$1" >/dev/null 2>&1; then
-    if [ ! "$2"="init" ]; then
+    if [ ! "$2" = "init" ]; then
         environment_error=false
         if [ ! -e "$ICRN_USER_CATALOG" ]; then
             echo "Couldn't locate user catalog at:"
             echo "$ICRN_USER_CATALOG"
-            echo "Did you run `./icrn_manager libraries init`?"
+            echo "Did you run `./icrn_manager kernels init`?"
             environment_error=true
         fi
-        if [ ! -e "$ICRN_LIBRARY_CATALOG" ]; then
+        if [ ! -e "$ICRN_KERNEL_CATALOG" ]; then
             echo "Couldn't locate ICRN's central catalog at:"
-            echo "$ICRN_LIBRARY_CATALOG"
+            echo "$ICRN_KERNEL_CATALOG"
             echo "Please contact support."
             environment_error=true
         fi
         if [ ! -e "$ICRN_USER_BASE" ]; then
             echo "Couldn't locate user's ICRN base directory:"
             echo "$ICRN_USER_BASE"
-            echo "Did you run `./icrn_manager libraries init`?"
+            echo "Did you run `./icrn_manager kernels init`?"
             environment_error=true
         fi
-        if [ ! -e "$ICRN_USER_LIBRARY_BASE" ]; then
-            echo "Couldn't locate user's ICRN Library base directory:"
-            echo "$ICRN_USER_LIBRARY_BASE"
-            echo "Did you run `./icrn_manager libraries init`?"
+        if [ ! -e "$ICRN_USER_KERNEL_BASE" ]; then
+            echo "Couldn't locate user's ICRN Kernel base directory:"
+            echo "$ICRN_USER_KERNEL_BASE"
+            echo "Did you run `./icrn_manager kernels init`?"
             environment_error=true
         fi
-        if [ ! -e "$ICRN_LIBRARY_REPOSITORY" ]; then
-            echo "Couldn't locate the ICRN library repository:"
-            echo "$ICRN_LIBRARY_REPOSITORY"
+        if [ ! -e "$ICRN_KERNEL_REPOSITORY" ]; then
+            echo "Couldn't locate the ICRN kernel repository:"
+            echo "$ICRN_KERNEL_REPOSITORY"
             echo "Please contact support."
             environment_error=true
         fi

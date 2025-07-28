@@ -1,35 +1,50 @@
 # Where should we write the GIF?
-Output documentation/demo_resources/icrn_libraries_use_Rbioconductor.gif
+Output documentation/source/demo_resources/icrn_libraries_use_Rbioconductor.gif
 
-# Set up a 1200x600 terminal with 46px font.
+# Set up a 1200x600 terminal with 18px font.
 Set FontSize 18 
 Set Width 1200
 Set Height 600
+Set WindowBar Colorful
 Set TypingSpeed 20ms
 
-# Type a command in the terminal.
-Type "# RBioconductor is a very large R library which can take hours to install..."
-Enter
-Sleep 1s
-Type "# this will take a few minutes..."
-Enter
-Sleep 1s
-Type "./icrn_manager libraries get Rbioconductor 3.20"
-Enter
-Sleep 240s
-Type "# I've checked out this R kernel, now, i need to use it."
-Enter
-Sleep 1s
-Type "./icrn_manager libraries use Rbioconductor 3.20"
-Enter
-Sleep 1s
-Type "# Just like that - I can use Rbioconductor"
-Enter
-Sleep 1s
-Type "Rscript -e 'library(BiocManager)'"
+# icrn_libraries_use_Rbioconductor.tape
+# This file contains the commands used to generate the animated GIF demonstration
+# of using the icrn_manager to get and use the Rbioconductor kernel
+
+Type "./icrn_manager kernels available"
 Enter
 Sleep 2s
+
+Type "./icrn_manager kernels get R Rbioconductor 3.20"
+Enter
+Sleep 180s
+
+Type "./icrn_manager kernels list"
+Enter
+Sleep 2s
+
+Type "./icrn_manager kernels use R Rbioconductor 3.20"
+Enter
+Sleep 2s
+
+Type "Rscript -e '.libPaths()'"
+Enter
+Sleep 2s
+
+Type "Rscript -e 'BiocManager::version()'"
+Enter
+Sleep 2s
+
 Type "Rscript -e 'library(edgeR)'"
 Enter
-Sleep 10s
+Sleep 2s
+
+Type "./icrn_manager kernels use none"
+Enter
+Sleep 1s
+
+Type "Rscript -e '.libPaths()'"
+Enter
+Sleep 2s
 

@@ -1,120 +1,286 @@
-User Guide
-==========
+Usage
+=====
 
-The Illinois Computes Library & Kernel Manager provides several subcommands for managing R library environments. Below are common usage patterns and examples.
+This section provides detailed usage examples for the Illinois Computes Library & Kernel Manager.
 
-Recommended Usage
------------------
-The custom kernels which are accessible through this system are intended for use in addition to common R packages which you may already be familiar with. 
-It is recommended that you regard these kernels as the 'final layer' to your R environment before beginning your work. 
+Initial Setup
+-------------
 
-It is best to maintain a habit of working with your
-native R environment (i.e., without custom kernels in use), and only check-out and use these kernels on an as-needed basis. 
+First, initialize the manager with a path to the central repository:
 
-Getting into the habit of working without these kernels will enable you to install common, useful packages (e.g., dplyr, ggplot2, plotly) once, in your own user libraries. 
-
-If you instead install these common packages into one of these kernels while you have it in-use, you will need to reinstall these common tools into **each and every** kernel you wish to use.
-
-How to Stop using custom Kernels
---------------------------------
 .. code-block:: bash
+
+   ./icrn_manager kernels init /path/to/central/repository
+
+Example for development:
+
+.. code-block:: bash
+
+   ./icrn_manager kernels init /u/hdpriest/icrn_temp_repository
+
+This creates the necessary configuration files and directories in your home directory.
+
+Discovering Available Kernels
+-----------------------------
+
+List all available kernels in the central catalog:
+
+.. code-block:: bash
+
+   ./icrn_manager kernels available
+
+Example output:
+
+.. code-block:: text
+
+   Available kernels in ICRN catalog (/path/to/repo/icrn_kernel_catalog.json):
+   Language	Kernel	Version
+   R	cowsay	1.0
+   R	mixRF	1.0
+   R	pecan	1.9
+   R	vctrs	1.0
+   Python	numpy	1.20
+
+This shows kernels organized by language (R, Python) with their available versions.
+
+Checking Your Local Catalog
+---------------------------
+
+List kernels you have already checked out:
+
+.. code-block:: bash
+
+   ./icrn_manager kernels list
+
+Example output:
+
+.. code-block:: text
+
+   checked out kernels in in user catalog (/home/user/.icrn/icrn_kernels/user_catalog.json):
+   Language	Kernel	Version
+   R	cowsay	1.0
+   R	pecan	1.9
+
+Getting a Kernel
+---------------
+
+Download and unpack a kernel from the central repository:
+
+.. code-block:: bash
+
+   ./icrn_manager kernels get <language> <kernel> <version>
+
+Examples:
+
+.. code-block:: bash
+
+   # Get an R kernel
+   ./icrn_manager kernels get R cowsay 1.0
    
-   ./icrn_manager libraries use none
+   # Get a Python kernel
+   ./icrn_manager kernels get Python numpy 1.20
 
-This command undoes the behind-the-scenes updates of environment variables and returns your R environment to its default behavior.
+This command:
+- Downloads the kernel package from the central repository
+- Unpacks it to your local directory
+- Updates your user catalog with the kernel information
 
-It is good practice to stop using custom kernels at the end of your work.
+Using a Kernel
+-------------
 
-All you have to do to begin using the custom kernel again is to leverage the 'use' command - see below.
+Activate a kernel for your current session:
 
-
-List Available Kernels
-------------------------
 .. code-block:: bash
 
-   ./icrn_manager libraries available
+   ./icrn_manager kernels use <language> <kernel> <version>
 
-This command lists all libraries and their versions in the central catalog. These libraries are available to you to check out.
+Examples:
 
-List Checked Out Kernels
+.. code-block:: bash
+
+   # Use an R kernel
+   ./icrn_manager kernels use R cowsay 1.0
+   
+   # Use a Python kernel
+   ./icrn_manager kernels use Python numpy 1.20
+
+This command:
+- Updates your R environment to use the specified kernel
+- Only one kernel can be active at a time
+- The kernel remains active until you switch to another or deactivate
+
+Switching Between Kernels
 -------------------------
+
+Switch from one kernel to another:
+
 .. code-block:: bash
 
-   ./icrn_manager libraries list
+   ./icrn_manager kernels use R pecan 1.9
 
-This command lists the libraries you have already checked out, which are ready for your immediate use.
+Stop using any kernel:
 
-Note that these libraries will not automatically update themselves. If it has been a long time since you've used a library, it is highly recommended to remove your own copy of it, clean your catalog, and check it out again.
-
-Get an R Kernel
--------------
 .. code-block:: bash
 
-   ./icrn_manager libraries get <library> <version>
+   ./icrn_manager kernels use none
+
+Managing Your Local Kernels
+---------------------------
+
+Remove a kernel completely (files and catalog entry):
+
+.. code-block:: bash
+
+   ./icrn_manager kernels remove <language> <kernel> <version>
 
 Example:
 
 .. code-block:: bash
 
-   ./icrn_manager libraries get pecan 1.9
+   ./icrn_manager kernels remove R cowsay 1.0
 
-This **copies** the identified kernel-version to your personal catalog, and unpacks it. It does not automatically use the kernel in your R environment.
-
-Note that this process creates a independent copy of the kernel in the central catalog. You are safe to alter it, update and/or add packages without harming the central catalog. If your alterations leave your catalog or kernel in a non-functional state, see the `clean` and `remove` commands for removing the kernels from your local catalog, and from your local storage.
-
-Use an R Kernel
--------------
-.. code-block:: bash
-
-   ./icrn_manager libraries use <library> <version>
-
-Example:
+Clean a kernel entry from your catalog (keeps files):
 
 .. code-block:: bash
 
-   ./icrn_manager libraries use pecan 1.9
+   # Remove specific version
+   ./icrn_manager kernels clean <language> <kernel> <version>
+   
+   # Remove all versions of a kernel
+   ./icrn_manager kernels clean <language> <kernel>
 
-This activates the specified kernel for your R session by automatically updating your ~/.Renviron file. Only one kernel can be activate at any time.
+Examples:
 
-While this kernel is active, unless you specify otherwise, all R packages installed will be installed into this kernel. This enables you to augment this kernel with your own additions.
+.. code-block:: bash
 
-However, it also means that if you install new packages into this kernel, and subsequently stop using this kernel, you will need to install those packages again the next time you want to use them.
+   # Clean specific version
+   ./icrn_manager kernels clean R cowsay 1.0
+   
+   # Clean all versions of a kernel
+   ./icrn_manager kernels clean R cowsay
 
-If you have R packages you use regularly, it is recommended to install these into your base user libraries location, and once you have those common packages installed, begin using a custom kernel.
-
-Switch Kernels
+Common Workflows
 ----------------
+
+**Scenario 1: First-time setup and use (R)**
+
 .. code-block:: bash
 
-   ./icrn_manager libraries use <other-library> <version>
+   # Initialize
+   ./icrn_manager kernels init /path/to/repo
+   
+   # See what's available
+   ./icrn_manager kernels available
+   
+   # Get a kernel
+   ./icrn_manager kernels get R cowsay 1.0
+   
+   # Use the kernel
+   ./icrn_manager kernels use R cowsay 1.0
 
-Stop Using Kernels
---------------------
+**Scenario 2: First-time setup and use (Python)**
+
 .. code-block:: bash
 
-   ./icrn_manager libraries use none
+   # Initialize
+   ./icrn_manager kernels init /path/to/repo
+   
+   # See what's available
+   ./icrn_manager kernels available
+   
+   # Get a Python kernel
+   ./icrn_manager kernels get Python numpy 1.24.0
+   
+   # Use the kernel (this installs it in Jupyter)
+   ./icrn_manager kernels use Python numpy 1.24.0
+   
+   # The kernel is now available in Jupyter notebooks
 
+**Scenario 3: Switching between kernels**
 
-Remove a Kernels
-----------------
 .. code-block:: bash
 
-   ./icrn_manager libraries remove <library> <version>
+   # Stop current kernel
+   ./icrn_manager kernels use none
+   
+   # Switch to different kernel
+   ./icrn_manager kernels use R pecan 1.9
 
-Clean User Catalog Entry
-------------------------
+**Scenario 4: Clean slate**
+
 .. code-block:: bash
 
-   # clear the catalog entry for a specific version of a kernel
-   ./icrn_manager libraries clean <library> <version>
+   # Stop using kernels
+   ./icrn_manager kernels use none
+   
+   # Remove kernel files and entries
+   ./icrn_manager kernels remove R cowsay 1.0
+   
+   # Or just clean catalog entries
+   ./icrn_manager kernels clean R cowsay 1.0
 
-   # clear the catalog entry for all versions of a kernel
-   ./icrn_manager libraries clean <library> 
+Python Kernel Specific Workflows
+--------------------------------
 
-This will scrub your catalog of the entries relating to this kernel and version. It will not alter any of the actual checked out files for these kernels.
+**Python Kernel Installation and Use**
 
-You can use this command and omit the 'version' parameter to scrub all versions of a given library. 
+Python kernels work differently from R kernels. When you use a Python kernel, it gets installed into your Jupyter environment:
 
-This command, in conjunction with the 'remove' command, allows you to start from a clean slate, if you wish to rebuild your personal catalog of kernels.
+.. code-block:: bash
 
-For more details on each command, see the :doc:`reference` section. 
+   # Get a Python kernel
+   ./icrn_manager kernels get Python numpy 1.24.0
+   
+   # Use the kernel (installs it in Jupyter)
+   ./icrn_manager kernels use Python numpy 1.24.0
+   
+   # The kernel "numpy-1.24.0" is now available in Jupyter notebooks
+   # You can select it from the kernel menu in Jupyter
+
+**Python Kernel Removal**
+
+To remove Python kernels from Jupyter:
+
+.. code-block:: bash
+
+   # Remove all Python kernels from Jupyter
+   ./icrn_manager kernels use Python none
+   
+   # This uses 'jupyter kernelspec uninstall' to remove kernels
+
+**Python Kernel Management**
+
+Python kernels are stored in language-specific directories:
+
+.. code-block:: text
+
+   ~/.icrn/icrn_kernels/
+   ├── r/                    # R kernels
+   │   └── cowsay-1.0/
+   └── python/               # Python kernels
+       └── numpy-1.24.0/
+
+**Verifying Python Kernel Installation**
+
+You can verify that your Python kernel was installed correctly:
+
+.. code-block:: bash
+
+   # List all available Jupyter kernels
+   jupyter kernelspec list
+   
+   # You should see your kernel listed, e.g.:
+   # Available kernels:
+   #   numpy-1.24.0    /home/user/.local/share/jupyter/kernels/numpy-1.24.0
+
+Troubleshooting
+---------------
+
+If you encounter issues:
+
+1. **Check your catalog**: Use `./icrn_manager kernels list` to see what kernels you have
+2. **Verify availability**: Use `./icrn_manager kernels available` to see what's in the central catalog
+3. **Clean and retry**: Use `./icrn_manager kernels clean` to remove problematic entries
+4. **Start fresh**: Use `./icrn_manager kernels remove` to completely remove a kernel
+
+For more detailed troubleshooting, see the :doc:`troubleshooting` section. 

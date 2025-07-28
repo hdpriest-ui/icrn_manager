@@ -1,40 +1,58 @@
 # Where should we write the GIF?
-Output icrn_libraries_mngr_use_case.gif
+Output documentation/source/demo_resources/icrn_lib_manager_use_case.gif
 
-# Set up a 1200x600 terminal with 46px font.
+# Set up a 1200x600 terminal with 18px font.
 Set FontSize 18 
 Set Width 1200
 Set Height 600
+Set WindowBar Colorful
 Set TypingSpeed 20ms
 
-Type "# PEcAn - the Predictive Ecosystem Analyzer is a large, complex set of R packages. I want to use it."
+# icrn_lib_manager_use_case.tape
+# This file contains the commands used to generate the animated GIF demonstration
+# of a complete use case workflow
+
+Type "./icrn_manager kernels init /u/hdpriest/icrn_temp_repository"
+Enter
+Sleep 2s
+
+Type "./icrn_manager kernels available"
+Enter
+Sleep 2s
+
+Type "./icrn_manager kernels get R cowsay 1.0"
+Enter
+Sleep 180s
+
+Type "./icrn_manager kernels list"
+Enter
+Sleep 2s
+
+Type "./icrn_manager kernels use R cowsay 1.0"
+Enter
+Sleep 2s
+
+Type "Rscript -e 'library(cowsay)'"
+Enter
+Sleep 2s
+
+Type "./icrn_manager kernels get R pecan 1.9"
+Enter
+Sleep 180s
+
+Type "./icrn_manager kernels use R pecan 1.9"
+Enter
+Sleep 2s
+
+Type "Rscript -e 'library(PEcAn.all)'"
+Enter
+Sleep 2s
+
+Type "./icrn_manager kernels use none"
 Enter
 Sleep 1s
-Type "Rscript -e 'library(PEcAn.workflow)'"
+
+Type "Rscript -e '.libPaths()'"
 Enter
-Sleep 1s
-Type "# I don't have this package installed. But the ICRN library manager lets me use it without installing it..."
-Enter
-Sleep 1s
-Type "./icrn_manager libraries list"
-Sleep 500ms
-Enter
-Sleep 1s
-Type "# I have this library available in my personal catalog."
-Enter
-Sleep 1s
-Type "# All I need to do is tell R to use it..."
-Enter
-Sleep 1s
-# Type a command in the terminal.
-Type "./icrn_manager libraries use pecan 1.9"
-Sleep 500ms
-Enter
-Type "# And now I can use PEcAn"
-Sleep 1s
-Enter
-Type "Rscript -e 'library(PEcAn.workflow)'"
-Sleep 1s
-Enter
-Sleep 5s
+Sleep 2s
 
