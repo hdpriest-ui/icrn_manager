@@ -1,6 +1,9 @@
 Slurm Batch Job Examples (Campus Cluster)
 ========================================
 
+.. warning::
+   **PLACEHOLDER CONTENT**: This process has not ever been attempted. These examples are theoretical and have not been tested in practice.
+
 This section provides example SLURM batch job scripts for different kernel types on the Campus Cluster.
 
 R Kernel Batch Job
