@@ -22,7 +22,7 @@ ICRN_USER_CATALOG=${ICRN_USER_CATALOG:-${ICRN_USER_KERNEL_BASE}/user_catalog.jso
 
 if [ ! -e ${ICRN_MANAGER_CONFIG} ]; then
     # if manager config json doesn't exist, we need to be in the 'init' call
-    if [ ! "$2"="init" ]; then
+    if [ ! "$2" = "init" ]; then
         echo "You must run 'icrn_manager kernels init' prior to leveraging this tool."
         exit 1
     fi
@@ -715,7 +715,7 @@ function kernels__init() # create base resources
         echo "Configuration for manager exists at ${ICRN_MANAGER_CONFIG}"
     fi
     echo ""
-    if [ -n overwrite ]; then
+    if [ -n "$overwrite" ]; then
 	echo "Updating location of central catalog to: $central_repository"
         user_catalog_tmp=$(mktemp)
         jq -r ".\"icrn_central_catalog_path\"=\"$central_repository\"" "${ICRN_MANAGER_CONFIG}" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "${ICRN_MANAGER_CONFIG}"
@@ -798,7 +798,7 @@ function help() # Show a list of functions
 
 # check for valid function
 if declare -f "$1" >/dev/null 2>&1; then
-    if [ ! "$2"="init" ]; then
+    if [ ! "$2" = "init" ]; then
         environment_error=false
         if [ ! -e "$ICRN_USER_CATALOG" ]; then
             echo "Couldn't locate user catalog at:"
