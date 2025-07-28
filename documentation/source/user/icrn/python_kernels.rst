@@ -195,4 +195,4 @@ If kernel installation fails:
 2. Verify your user catalog is properly configured
 3. Try removing and re-adding the kernel
 
-For more help, see the :doc:`../troubleshooting` guide. 
+For more help, see the :doc:`../../troubleshooting` guide. 

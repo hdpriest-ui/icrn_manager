@@ -40,7 +40,7 @@ If commands fail with configuration errors:
 
 .. code-block:: bash
 
-   You must run 'icrn_manager kernels init' prior to leveraging this tool.
+   You must run "icrn_manager kernels init" prior to leveraging this tool.
    Couldn't locate user catalog at: /path/to/catalog
 
 **Solution:**
