@@ -259,7 +259,7 @@ function kernels__use() # use a kernel which is already checked out
                 if [ -d "$absolute_path" ]; then
                     echo "Found. Linking and Activating..."
                     ln -s $absolute_path $target_kernel_link_path 
-                    ${target_r_libs_script} ${target_r_environ_file} $targetname
+                    ${target_r_libs_script} ${target_r_environ_file} $absolute_path $overlay_path
                     echo "Done."
                 else
                     echo "Path could not be found. There is a problem with your user catalog."
@@ -328,7 +328,7 @@ function register_user_overlay_in_user_catalog() # add the overlay location to t
         echo "Found."
         echo "Updating user's catalog with $user_overlay_location"
         user_catalog_tmp=$(mktemp)
-        jq -r ".\"$language\".\"$targetname\".\"$version\"."overlay_path"=\"$target_kernel_path\" " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        jq -r ".\"$language\".\"$targetname\".\"$version\"."overlay_path"=\"$user_overlay_location\" " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
         # user catalog now contains path to this kernel's main R library.
         echo "Done."
         echo ""
@@ -348,9 +348,9 @@ function register_r_library_in_user_catalog() # without unpacking, identify R ke
     local version=$1; shift
     
     echo checking for: $target_unpacked"/bin/activate"
-    if [ -e $target_unpacked"bin/activate" ]; then
+    if [ -e $target_unpacked"/bin/activate" ]; then
         echo "activating environment"
-        source $target_unpacked"bin/activate"
+        source $target_unpacked"/bin/activate"
         # WARNING: this is weak - relies on preparer and environment ensuring this is top slot
         # --vanilla ensures that we aren't interpreting an existing kernel-fu environment variable
         # "R_HOME=''" ensures we don't get complaints from R that R_HOME is set, but we're calling a Rscript that isn't located there
@@ -359,9 +359,9 @@ function register_r_library_in_user_catalog() # without unpacking, identify R ke
 	    target_kernel_path=$(R_HOME='' R_LIBS_USER='' R_LIBS_SITE='' Rscript --vanilla -e 'cat(.libPaths()[1])')
         echo "determined: $target_kernel_path"
         echo "deactivating"
-        source $target_unpacked"bin/deactivate"
+        source $target_unpacked"/bin/deactivate"
         
-        echo "Updating user's catalog with $language $targetname and $version"
+        echo "Updating user's catalog with $target_kernel_path"
         user_catalog_tmp=$(mktemp)
         jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_kernel_path\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
         # user catalog now contains path to this kernel's main R library.
@@ -375,7 +375,7 @@ function register_r_library_in_user_catalog() # without unpacking, identify R ke
     fi
 }
 
-function unpack_r_kernel() # unpack and configure an R kernel environment
+function register_python_library_in_user_catalog() # unpack and configure a Python kernel environment
 {
     local target_unpacked=$1; shift
     local language=$1; shift
@@ -383,52 +383,8 @@ function unpack_r_kernel() # unpack and configure an R kernel environment
     local version=$1; shift
     
     echo checking for: $target_unpacked"/bin/activate"
-    if [ -e $target_unpacked"bin/activate" ]; then
-        echo "activating environment"
-        source $target_unpacked"bin/activate"
-        echo "doing unpack"
-        conda-unpack
-        # WARNING: this is weak - relies on preparer and environment ensuring this is top slot
-        # --vanilla ensures that we aren't interpreting an existing kernel-fu environment variable
-        # "R_HOME=''" ensures we don't get complaints from R that R_HOME is set, but we're calling a Rscript that isn't located there
-        # we want to get a very plain readout of where this R install's main kernel is.
-        echo "getting R path."
-	    target_kernel_path=$(R_HOME='' R_LIBS_USER='' R_LIBS_SITE='' Rscript --vanilla -e 'cat(.libPaths()[1])')
-        echo "determined: $target_kernel_path"
-        echo "deactivating"
-        source $target_unpacked"bin/deactivate"
-        
-        echo "Updating user's catalog with $language $targetname and $version"
-        user_catalog_tmp=$(mktemp)
-        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_kernel_path\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
-        
-        echo "Done."
-        echo ""
-        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in R."
-        return 0
-    else
-        echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
-        return 1
-    fi
-}
-
-function unpack_python_kernel() # unpack and configure a Python kernel environment
-{
-    local target_unpacked=$1; shift
-    local language=$1; shift
-    local targetname=$1; shift
-    local version=$1; shift
-    
-    echo checking for: $target_unpacked"bin/activate"
-    if [ -e $target_unpacked"bin/activate" ]; then
-        echo "activating environment"
-        source $target_unpacked"bin/activate"
-        chmod -R u+w $target_unpacked
-        echo "doing unpack"
-        conda-unpack
-        echo "deactivating"
-        source $target_unpacked"/bin/deactivate"
-        
+    if [ -e $target_unpacked"/bin/activate" ]; then
+        # presence of $target_unpacked"/bin/activate" indicates this is a conda environment as expected        
         echo "Updating user's catalog with $language $targetname and $version"
         user_catalog_tmp=$(mktemp)
         jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_unpacked\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
@@ -443,110 +399,9 @@ function unpack_python_kernel() # unpack and configure a Python kernel environme
     fi
 }
 
-function kernels__get() # get a kernel from the central repo
+function kernels__get() # alias for get in place
 {
-    local language=$1; shift
-    local targetname=$1; shift
-    local version=$1; shift
-
-    # ensure we get a uc-first label for lang
-    language="$(tr '[:lower:]' '[:upper:]' <<< ${language:0:1})${language:1}"
-
-    # Validate input parameters to prevent path traversal and wildcard attacks
-    if [[ "$targetname" =~ [\]\/\[\*\?\\] ]] || [[ "$version" =~ [\]\/\[\*\?\\] ]]; then
-        echo "Error: Invalid characters in kernel name or version. Cannot contain wildcards (*?[]) or path separators (/)"
-        exit 1
-    fi
-    
-    if [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
-        echo "usage: icrn_manager kernels get <language> <kernel name> <version number>"
-        help
-        exit 1
-    else
-        echo "Desired kernel:"
-        echo "Language: "$language
-        echo "Kernel: "$targetname
-        echo "Version: "$version
-        
-    fi
-    icrn_catalog=${ICRN_KERNEL_CATALOG}
-    user_catalog=${ICRN_USER_CATALOG}
-    echo ""
-    echo "ICRN Catalog:"
-    echo $icrn_catalog
-    echo "User Catalog:"
-    echo $user_catalog
-    echo ""
-    
-    # get the target file from the ICRN catalog
-    target_file=$(jq -r ".$language.$targetname.\"$version\".\"conda-pack\"" $icrn_catalog)
-    if [ ! "$target_file" = "null" ]; then
-        # Determine the appropriate kernel path based on language
-        case $language in
-            "R")
-                pack_filepath=${ICRN_R_KERNELS}/$targetname/$version/$target_file
-                ;;
-            "Python")
-                pack_filepath=${ICRN_PYTHON_KERNELS}/$targetname/$version/$target_file
-                ;;
-            *)
-                echo "ERROR: Unsupported language '$language' for kernel unpacking"
-                echo "Supported languages: R, Python"
-                exit 1
-                ;;
-        esac
-        
-        if [ -e $pack_filepath ]; then
-            # identify target location, make it if it doesn't exist, and then unpack to it
-            # Create language-specific subdirectory structure
-            language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
-            target_unpacked="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
-            
-            # Safety check: ensure the path is within the intended directory
-            if [[ "$target_unpacked" != "$ICRN_USER_KERNEL_BASE"* ]]; then
-                echo "Error: Security violation - target path would escape intended directory"
-                echo "Target: $target_unpacked"
-                echo "Base: $ICRN_USER_KERNEL_BASE"
-                exit 1
-            fi
-            
-            if [ ! -d "$target_unpacked" ]; then
-                echo "Making target directory: $target_unpacked"
-                mkdir -p "$target_unpacked"
-                echo "Checking out kernel..."
-                tar -xzf "$pack_filepath" -C "$target_unpacked"
-            else
-                echo "WARNING: target directory: $target_unpacked already exists!"
-                echo "Overwriting existing files from packed kernel..."
-                tar -xzf "$pack_filepath" -U -C "$target_unpacked"
-                echo "Note that this risks leaving this kernel in an intermediate state."
-                echo "It is recommended that you remove the kernel entirely by running:"
-                echo "'rm -rf $target_unpacked'"
-            fi
-            
-            # Use language-specific unpacking function
-            case $language in
-                "R")
-                    unpack_r_kernel "$target_unpacked" "$language" "$targetname" "$version"
-                    ;;
-                "Python")
-                    unpack_python_kernel "$target_unpacked" "$language" "$targetname" "$version"
-                    ;;
-                *)
-                    echo "ERROR: Unsupported language '$language' for kernel unpacking"
-                    echo "Supported languages: R, Python"
-                    exit 1
-                    ;;
-            esac
-        else
-            echo "ERROR: could not find target pack file: $pack_filepath"
-            exit 1
-        fi
-    else
-        echo "ERROR: could not find target kernel to get"
-        get_versions_for_package "$icrn_catalog" "$language" "$targetname"
-        exit 1
-    fi
+    "kernels__get_in_place" "$@"
 }
 
 function kernels__get_in_place() # prep for 'use' without relocating kernel
@@ -629,14 +484,15 @@ function kernels__get_in_place() # prep for 'use' without relocating kernel
             fi
             
             # Use language-specific unpacking function
-            # evaluate python behavior in context of the centralized libraries for R
-            # "Python")
-            #     unpack_python_kernel "$target_unpacked" "$language" "$targetname" "$version"
-            #     ;;
             case $language in
                 "R")
-                    register_r_library_in_user_catalog "$target_unpacked" "$language" "$targetname" "$version"
+                    echo "registering R library"
+                    register_r_library_in_user_catalog "$target_location" "$language" "$targetname" "$version"
+                    echo "registering user overlay"
                     register_user_overlay_in_user_catalog "$language" "$targetname" "$version"
+                    ;;
+                "Python")
+                    register_python_library_in_user_catalog "$target_location" "$language" "$targetname" "$version"
                     ;;
                 *)
                     echo "ERROR: Unsupported language '$language' for kernel unpacking"
@@ -719,98 +575,6 @@ function kernels__clean() # remove a kernel entry from the users catalog
         fi
 
     fi
-}
-
-function kernels__remove() # remove a users copy of a kernel
-{
-    local language=$1; shift
-    local targetname=$1; shift
-    local version=$1; shift
-
-    icrn_catalog=${ICRN_KERNEL_CATALOG}
-    user_catalog=${ICRN_USER_CATALOG}
-    echo ""
-    echo "ICRN Catalog:"
-    echo $icrn_catalog
-    echo "User Catalog:"
-    echo $user_catalog
-    echo ""
- 
-    # Validate input parameters to prevent path traversal and wildcard attacks
-    if [[ "$targetname" =~ [\]\/\[\*\?\] ]] || [[ "$version" =~ [\]\/\[\*\?\] ]]; then
-        echo "Error: Invalid characters in kernel name or version. Cannot contain wildcards (*?[]) or path separators (/)"
-        exit 1  
-    fi
-    
-    if [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
-        help
-        echo ""
-        echo "Can't proceed without language, target kernel and version."
-        echo "usage: icrn_manager kernels remove <language> <kernel name> <version number>"
-        echo ""
-        exit 1
-    else
-        echo "Desired kernel to scrub from user catalog:"
-        echo "Language: "$language
-        echo "Kernel: "$targetname
-        echo "Version: "$version
-        echo ""
-    fi
-    check_for_catalog_entry "$user_catalog" "$language" "$targetname" "$version"
-    if [ $last_check = 0 ]; then
-        echo "$targetname and $version not present in user catalog at $user_catalog"
-        get_versions_for_package $user_catalog $language $targetname
-        exit 1
-    else
-        last_check=-1
-    fi
-    echo "Removing package files, and kernel entries for: $@"
-    confirm "Are you sure? [Y/n]"
-    
-    # Construct the target path safely
-    # Create language-specific subdirectory structure
-    language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
-    target_unpacked="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
-    
-    # Additional safety check: ensure the path is within the intended directory
-    # Use realpath to resolve any potential symlinks and normalize the path
-    if command -v realpath >/dev/null 2>&1; then
-        resolved_target=$(realpath "$target_unpacked" 2>/dev/null)
-        resolved_base=$(realpath "$ICRN_USER_KERNEL_BASE" 2>/dev/null)
-        
-        if [ -n "$resolved_target" ] && [ -n "$resolved_base" ]; then
-            # Check if the resolved target path starts with the resolved base path
-            if [[ "$resolved_target" != "$resolved_base"* ]]; then
-                echo "Error: Security violation - target path would escape intended directory"
-                echo "Target: $resolved_target"
-                echo "Base: $resolved_base"
-                exit 1
-            fi
-        fi
-    fi
-    
-    # Final validation: ensure the path is within the kernel base directory
-    if [[ "$target_unpacked" != "$ICRN_USER_KERNEL_BASE"* ]]; then
-        echo "Error: Security violation - target path would escape intended directory"
-        echo "Target: $target_unpacked"
-        echo "Base: $ICRN_USER_KERNEL_BASE"
-        exit 1
-    fi
-    
-    if [ -e "$target_unpacked" ]; then
-        echo "Removing: $target_unpacked"
-        rm -rf "$target_unpacked"
-        if [ $? -eq 0 ]; then
-            echo "Successfully removed kernel files from: $target_unpacked"
-        else
-            echo "Error: Failed to remove kernel files from: $target_unpacked"
-            exit 1
-        fi
-    else
-        echo "Could not locate $target_unpacked - exiting..."
-        exit 1
-    fi
-    kernels__clean "$language" "$targetname" "$version"
 }
 
 function kernels__init() # create base resources
@@ -930,8 +694,6 @@ function kernels() # launcher
         echo ""
         help
         exit 1
-    elif [ "$cmdname" = "remove" ]; then
-        kernels__remove "$@"
     elif [ "$cmdname" = "clean" ]; then
         echo "Removing kernel entries for : $@"
         confirm "Are you sure? [Y/n]"
@@ -959,7 +721,6 @@ function help() # Show a list of functions
     echo "    list"
     echo "    available"
     echo "    get <language> <kernel> <version>"
-    echo "    remove"
     echo "    use <language> <kernel> <version>"
     echo "    use <language> none"
     echo " "
