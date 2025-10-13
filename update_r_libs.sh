@@ -7,7 +7,8 @@
 # usage therefore is: ./update_r_libs.sh target_renviron_path target_kernel_name
 
 target_Renviron_file=$1
-target_kernel_name=$2
+target_kernel_path=$2
+target_overlay_path=$3
 
 if [ -z "$target_Renviron_file" ]; then
     echo "ERROR: no target Renviron file specified."
@@ -43,8 +44,10 @@ ICRN_KERNEL_CATALOG=${ICRN_KERNEL_REPOSITORY}"/icrn_kernel_catalog.json"
 update_r_libs_path()
 {
     target_r_environ_file=$1
-    icrn_kernel_name=$2
-    ICRN_kernel_path=${ICRN_KERNEL_BASE}/${icrn_kernel_name}
+    ICRN_kernel_path=$2
+    USER_overlay_path=$3
+    # icrn_kernel_name=$2
+    # ICRN_kernel_path=${ICRN_KERNEL_BASE}/${icrn_kernel_name}
     
     # Ensure the target file can be written to
     if [ -f "$target_r_environ_file" ] && [ ! -w "$target_r_environ_file" ]; then
@@ -53,12 +56,13 @@ update_r_libs_path()
     fi
     
     echo "# ICRN ADDITIONS - do not edit this line or below" >> "$target_r_environ_file"
-    if [ -z "$icrn_kernel_name" ]; then
+    if [ -z "$ICRN_kernel_path" ]; then
         echo "Unsetting R_libs..."
         echo "R_LIBS="'${R_LIBS:-}' >> "$target_r_environ_file"
     else
         echo "Using ${ICRN_kernel_path} within R..."
-        echo "R_LIBS="${ICRN_kernel_path}':${R_LIBS:-}' >> "$target_r_environ_file"
+        echo "Using ${USER_overlay_path} for new R package installs..."
+        echo "R_LIBS="${USER_overlay_path}':'${ICRN_kernel_path}':${R_LIBS:-}' >> "$target_r_environ_file"
     fi
 }
 
@@ -68,5 +72,5 @@ if [ ! -z "$target_Renviron_file" ]; then
             sed -i '/^# ICRN ADDITIONS - do not edit this line or below$/,$d' "$target_Renviron_file" 
         fi
     fi
-    update_r_libs_path "$target_Renviron_file" "$target_kernel_name"
+    update_r_libs_path "$target_Renviron_file" "$target_kernel_path" "$target_overlay_path"
 fi

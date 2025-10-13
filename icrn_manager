@@ -242,6 +242,10 @@ function kernels__use() # use a kernel which is already checked out
         esac
     else
         absolute_path=$(jq -r ".\"$language\".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalog)
+        overlay_path=$(jq -r ".\"$language\".\"$targetname\".\"$version\".\"overlay_path\"" $user_catalog)
+        # absolute path for R is determined by activating the R install and finding the location of its library directory
+        # then we create a link to it
+        # user_overlay_location="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
         echo "checking for: "$absolute_path
         
         case $language in
@@ -309,6 +313,66 @@ function kernels__use() # use a kernel which is already checked out
 function kernels__activate() # alias for use
 {
     "kernels__use" "$@"
+}
+
+function register_user_overlay_in_user_catalog() # add the overlay location to the users catalog
+{
+    local language=$1; shift
+    local targetname=$1; shift
+    local version=$1; shift
+
+    language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
+    user_overlay_location="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
+    echo checking for: $user_overlay_location
+    if [ -e $user_overlay_location ]; then
+        echo "Found."
+        echo "Updating user's catalog with $user_overlay_location"
+        user_catalog_tmp=$(mktemp)
+        jq -r ".\"$language\".\"$targetname\".\"$version\"."overlay_path"=\"$target_kernel_path\" " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        # user catalog now contains path to this kernel's main R library.
+        echo "Done."
+        echo ""
+        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in R."
+        return 0
+    else
+        echo "ERROR: Could not register the overlay location."
+        return 1
+    fi
+}
+
+function register_r_library_in_user_catalog() # without unpacking, identify R kernel library location
+{
+    local target_unpacked=$1; shift
+    local language=$1; shift
+    local targetname=$1; shift
+    local version=$1; shift
+    
+    echo checking for: $target_unpacked"/bin/activate"
+    if [ -e $target_unpacked"bin/activate" ]; then
+        echo "activating environment"
+        source $target_unpacked"bin/activate"
+        # WARNING: this is weak - relies on preparer and environment ensuring this is top slot
+        # --vanilla ensures that we aren't interpreting an existing kernel-fu environment variable
+        # "R_HOME=''" ensures we don't get complaints from R that R_HOME is set, but we're calling a Rscript that isn't located there
+        # we want to get a very plain readout of where this R install's main kernel is.
+        echo "getting R path."
+	    target_kernel_path=$(R_HOME='' Rscript --vanilla -e 'cat(.libPaths()[1])')
+        echo "determined: $target_kernel_path"
+        echo "deactivating"
+        source $target_unpacked"/bin/deactivate"
+        
+        echo "Updating user's catalog with $language $targetname and $version"
+        user_catalog_tmp=$(mktemp)
+        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_kernel_path\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        # user catalog now contains path to this kernel's main R library.
+        echo "Done."
+        echo ""
+        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in R."
+        return 0
+    else
+        echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
+        return 1
+    fi
 }
 
 function unpack_r_kernel() # unpack and configure an R kernel environment
@@ -476,6 +540,112 @@ function kernels__get() # get a kernel from the central repo
             esac
         else
             echo "ERROR: could not find target pack file: $pack_filepath"
+            exit 1
+        fi
+    else
+        echo "ERROR: could not find target kernel to get"
+        get_versions_for_package "$icrn_catalog" "$language" "$targetname"
+        exit 1
+    fi
+}
+
+function kernels__get_in_place() # prep for 'use' without relocating kernel
+{
+    local language=$1; shift
+    local targetname=$1; shift
+    local version=$1; shift
+
+    # ensure we get a uc-first label for lang
+    language="$(tr '[:lower:]' '[:upper:]' <<< ${language:0:1})${language:1}"
+
+    # Validate input parameters to prevent path traversal and wildcard attacks
+    if [[ "$targetname" =~ [\]\/\[\*\?\\] ]] || [[ "$version" =~ [\]\/\[\*\?\\] ]]; then
+        echo "Error: Invalid characters in kernel name or version. Cannot contain wildcards (*?[]) or path separators (/)"
+        exit 1
+    fi
+    
+    if [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
+        echo "usage: icrn_manager kernels get <language> <kernel name> <version number>"
+        help
+        exit 1
+    else
+        echo "Desired kernel:"
+        echo "Language: "$language
+        echo "Kernel: "$targetname
+        echo "Version: "$version
+        
+    fi
+    icrn_catalog=${ICRN_KERNEL_CATALOG}
+    user_catalog=${ICRN_USER_CATALOG}
+    echo ""
+    echo "ICRN Catalog:"
+    echo $icrn_catalog
+    echo "User Catalog:"
+    echo $user_catalog
+    echo ""
+    
+    # get the target file from the ICRN catalog
+    # target_file=$(jq -r ".$language.$targetname.\"$version\".\"conda-pack\"" $icrn_catalog)
+    target_location=$(jq -r ".$language.$targetname.\"$version\".\"environment_location\"" $icrn_catalog)
+    if [ ! "$target_location" = "null" ]; then
+                
+        # language, targetname, and version specify the path for a conda-activate command
+        # language, targetname, and version also specify the info for the overlay directory creation
+        # we need to get the R-path needed and register it in the user's config
+        # we need to get the users overlay library, and register it in the user's config
+        # for R, we will call:
+        # register_r_library_in_user_catalog
+        #   local target_unpacked=$1; shift
+        #   local language=$1; shift
+        #   local targetname=$1; shift
+        #   local version=$1; shift
+        # this calls: 
+        # source $target_unpacked"bin/activate"
+        # and
+        # source $target_unpacked"bin/activate"
+        # so, $target_unpacked should be the path to the location of the conda prefix which created this
+        # ex: /sw/icrn/jupyter/icrn_ncsa_resources/Kernels/R/pecan/1.9
+
+        if [ -e $target_location ]; then
+            # identify overlay library location, make it if it doesn't exist
+            # what to do if it DOES exist? - nothing, i think.
+            # Create language-specific subdirectory structure
+            language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
+            user_overlay_location="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
+            
+            # Safety check: ensure the path is within the intended directory
+            if [[ "$user_overlay_location" != "$ICRN_USER_KERNEL_BASE"* ]]; then
+                echo "Error: Security violation - target path would escape intended directory"
+                echo "Target: $user_overlay_location"
+                echo "Base: $ICRN_USER_KERNEL_BASE"
+                exit 1
+            fi
+            
+            if [ ! -d "$user_overlay_location" ]; then
+                echo "Making target directory: $user_overlay_location"
+                mkdir -p "$user_overlay_location"
+            else
+                echo "NOTICE: target directory: $user_overlay_location already exists."
+            fi
+            
+            # Use language-specific unpacking function
+            # evaluate python behavior in context of the centralized libraries for R
+            # "Python")
+            #     unpack_python_kernel "$target_unpacked" "$language" "$targetname" "$version"
+            #     ;;
+            case $language in
+                "R")
+                    register_r_library_in_user_catalog "$target_unpacked" "$language" "$targetname" "$version"
+                    register_user_overlay_in_user_catalog "$language" "$targetname" "$version"
+                    ;;
+                *)
+                    echo "ERROR: Unsupported language '$language' for kernel unpacking"
+                    echo "Supported languages: R, Python"
+                    exit 1
+                    ;;
+            esac
+        else
+            echo "ERROR: could not find target environment location: $target_location"
             exit 1
         fi
     else
