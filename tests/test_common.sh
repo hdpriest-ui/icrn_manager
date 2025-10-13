@@ -159,19 +159,19 @@ setup_test_env() {
     mkdir -p "$TEST_REPO/r_kernels"
     mkdir -p "$TEST_REPO/python_kernels"
     
-    # Create mock catalog
-    cat > "$TEST_REPO/icrn_kernel_catalog.json" << 'EOF'
+    # Create mock catalog with paths pointing to test repository
+    cat > "$TEST_REPO/icrn_kernel_catalog.json" << EOF
 {
   "R": {
     "cowsay": {
       "1.0": {
-        "conda-pack": "cowsay-1.0.tar.gz",
+        "environment_location": "$TEST_REPO/r_kernels/cowsay/1.0",
         "description": "Test R kernel for cowsay package"
       }
     },
     "ggplot2": {
       "3.4.0": {
-        "conda-pack": "ggplot2-3.4.0.tar.gz",
+        "environment_location": "$TEST_REPO/r_kernels/ggplot2/3.4.0",
         "description": "Test R kernel for ggplot2 package"
       }
     }
@@ -179,7 +179,7 @@ setup_test_env() {
   "Python": {
     "numpy": {
       "1.24.0": {
-        "conda-pack": "numpy-1.24.0.tar.gz",
+        "environment_location": "$TEST_REPO/python_kernels/numpy/1.24.0",
         "description": "Test Python kernel for numpy package"
       }
     }
@@ -187,28 +187,39 @@ setup_test_env() {
 }
 EOF
     
-    # Create mock kernel packages (valid tar files for testing)
-    mkdir -p "$TEST_REPO/r_kernels/cowsay/1.0"
-    mkdir -p "$TEST_REPO/r_kernels/ggplot2/3.4.0"
-    mkdir -p "$TEST_REPO/python_kernels/numpy/1.24.0"
+    # Create mock kernel environment directories (in-place environments, not tar files)
+    mkdir -p "$TEST_REPO/r_kernels/cowsay/1.0/bin"
+    mkdir -p "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin"
+    mkdir -p "$TEST_REPO/python_kernels/numpy/1.24.0/bin"
     
-    # Create valid tar files with dummy content for testing
-    echo "dummy content" > "$TEST_REPO/r_kernels/cowsay/1.0/dummy.txt"
-    tar -czf "$TEST_REPO/r_kernels/cowsay/1.0/cowsay-1.0.tar.gz" -C "$TEST_REPO/r_kernels/cowsay/1.0" dummy.txt 2>/dev/null || true
+    # Create R kernel mock with conda environment structure
+    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/cowsay/1.0/bin/activate"
+    echo "echo 'Activating R conda environment'" >> "$TEST_REPO/r_kernels/cowsay/1.0/bin/activate"
+    chmod +x "$TEST_REPO/r_kernels/cowsay/1.0/bin/activate"
+    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/cowsay/1.0/bin/deactivate"
+    echo "echo 'Deactivating R conda environment'" >> "$TEST_REPO/r_kernels/cowsay/1.0/bin/deactivate"
+    chmod +x "$TEST_REPO/r_kernels/cowsay/1.0/bin/deactivate"
+    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/cowsay/1.0/bin/Rscript"
+    echo "echo '/mock/r/lib'" >> "$TEST_REPO/r_kernels/cowsay/1.0/bin/Rscript"
+    chmod +x "$TEST_REPO/r_kernels/cowsay/1.0/bin/Rscript"
     
-    echo "dummy content" > "$TEST_REPO/r_kernels/ggplot2/3.4.0/dummy.txt"
-    tar -czf "$TEST_REPO/r_kernels/ggplot2/3.4.0/ggplot2-3.4.0.tar.gz" -C "$TEST_REPO/r_kernels/ggplot2/3.4.0" dummy.txt 2>/dev/null || true
+    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/activate"
+    echo "echo 'Activating R conda environment'" >> "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/activate"
+    chmod +x "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/activate"
+    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/deactivate"
+    echo "echo 'Deactivating R conda environment'" >> "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/deactivate"
+    chmod +x "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/deactivate"
+    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/Rscript"
+    echo "echo '/mock/r/lib'" >> "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/Rscript"
+    chmod +x "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/Rscript"
     
     # Create Python kernel mock with conda environment structure
-    mkdir -p "$TEST_REPO/python_kernels/numpy/1.24.0/bin"
-    echo "dummy content" > "$TEST_REPO/python_kernels/numpy/1.24.0/dummy.txt"
     echo "#!/bin/bash" > "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
     echo "echo 'Activating conda environment'" >> "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
     chmod +x "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
     echo "#!/bin/bash" > "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
     echo "echo 'Deactivating conda environment'" >> "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
     chmod +x "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
-    tar -czf "$TEST_REPO/python_kernels/numpy/1.24.0/numpy-1.24.0.tar.gz" -C "$TEST_REPO/python_kernels/numpy/1.24.0" . 2>/dev/null || true
     
     # Create mock conda-unpack command
     echo '#!/bin/bash' > "$TEST_BASE/conda-unpack"

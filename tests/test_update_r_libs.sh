@@ -13,12 +13,13 @@ test_update_r_libs_add() {
     local test_renviron="$TEST_USER_HOME/.Renviron"
     echo "R_LIBS=/usr/lib/R/library" > "$test_renviron"
     
-    # Test adding a kernel
+    # Test adding a kernel with overlay path
     local output
-    output=$("$UPDATE_R_LIBS" "$test_renviron" "test_kernel" 2>&1)
+    output=$("$UPDATE_R_LIBS" "$test_renviron" "/path/to/kernel" "/path/to/overlay" 2>&1)
     
     # Check if it was successful
-    if echo "$output" | grep -q "Using.*test_kernel.*within R" && \
+    if echo "$output" | grep -q "Using.*/path/to/kernel.*within R" && \
+       echo "$output" | grep -q "Using.*/path/to/overlay.*for new R package installs" && \
        grep -q "ICRN ADDITIONS" "$test_renviron"; then
         return 0
     else
@@ -39,9 +40,9 @@ test_update_r_libs_remove() {
     echo "# ICRN ADDITIONS" >> "$test_renviron"
     echo "R_LIBS_USER=/path/to/test_kernel" >> "$test_renviron"
     
-    # Test removing kernels (passing empty string as kernel name)
+    # Test removing kernels (passing empty strings as kernel and overlay paths)
     local output
-    output=$("$UPDATE_R_LIBS" "$test_renviron" "" 2>&1)
+    output=$("$UPDATE_R_LIBS" "$test_renviron" "" "" 2>&1)
     
     # Check if it was successful - the script should replace ICRN additions with unset
     # Note: The script doesn't remove old ICRN additions, it just adds new ones
@@ -66,14 +67,14 @@ test_update_r_libs_overwrite() {
     echo "# ICRN ADDITIONS" >> "$test_renviron"
     echo "R_LIBS_USER=/path/to/old_kernel" >> "$test_renviron"
     
-    # Test overwriting with new kernel
+    # Test overwriting with new kernel and overlay
     local output
-    output=$("$UPDATE_R_LIBS" "$test_renviron" "new_kernel" 2>&1)
+    output=$("$UPDATE_R_LIBS" "$test_renviron" "/path/to/new_kernel" "/path/to/new_overlay" 2>&1)
     
     # Check if it was successful - the script should replace old ICRN additions with new ones
-    if echo "$output" | grep -q "Using.*new_kernel.*within R" && \
-       grep -q "ICRN ADDITIONS" "$test_renviron" && \
-       grep -q "new_kernel" "$test_renviron"; then
+    if echo "$output" | grep -q "Using.*/path/to/new_kernel.*within R" && \
+       echo "$output" | grep -q "Using.*/path/to/new_overlay.*for new R package installs" && \
+       grep -q "ICRN ADDITIONS" "$test_renviron"; then
         return 0
     else
         echo "Overwrite output: $output"
@@ -105,7 +106,7 @@ test_update_r_libs_invalid_file() {
     set_test_env
     
     local output
-    output=$("$UPDATE_R_LIBS" "/nonexistent/file" "test_kernel" 2>&1)
+    output=$("$UPDATE_R_LIBS" "/nonexistent/file" "/path/to/kernel" "/path/to/overlay" 2>&1)
     
     # Check if it fails with appropriate error
     if echo "$output" | grep -q "no target Renviron file specified" || \
@@ -126,9 +127,9 @@ test_update_r_libs_empty_kernel() {
     local test_renviron="$TEST_USER_HOME/.Renviron"
     echo "R_LIBS=/usr/lib/R/library" > "$test_renviron"
     
-    # Test with empty kernel name
+    # Test with empty kernel and overlay paths
     local output
-    output=$("$UPDATE_R_LIBS" "$test_renviron" "" 2>&1)
+    output=$("$UPDATE_R_LIBS" "$test_renviron" "" "" 2>&1)
     
     # Check if it handles empty kernel name correctly
     if echo "$output" | grep -q "Unsetting R_libs"; then
@@ -150,12 +151,13 @@ test_update_r_libs_preserve_content() {
     echo "R_PROFILE=/path/to/profile" >> "$test_renviron"
     echo "R_ENVIRON=/path/to/environ" >> "$test_renviron"
     
-    # Test adding a kernel
+    # Test adding a kernel with overlay
     local output
-    output=$("$UPDATE_R_LIBS" "$test_renviron" "test_kernel" 2>&1)
+    output=$("$UPDATE_R_LIBS" "$test_renviron" "/path/to/kernel" "/path/to/overlay" 2>&1)
     
     # Check if it preserves existing content
-    if echo "$output" | grep -q "Using.*test_kernel.*within R" && \
+    if echo "$output" | grep -q "Using.*/path/to/kernel.*within R" && \
+       echo "$output" | grep -q "Using.*/path/to/overlay.*for new R package installs" && \
        grep -q "R_LIBS=/usr/lib/R/library" "$test_renviron" && \
        grep -q "R_PROFILE=/path/to/profile" "$test_renviron" && \
        grep -q "R_ENVIRON=/path/to/environ" "$test_renviron" && \
