@@ -347,19 +347,21 @@ function register_r_library_in_user_catalog() # without unpacking, identify R ke
     local targetname=$1; shift
     local version=$1; shift
     
-    echo checking for: $target_unpacked"/bin/activate"
-    if [ -e $target_unpacked"/bin/activate" ]; then
-        echo "activating environment"
-        source $target_unpacked"/bin/activate"
+    # echo checking for: $target_unpacked"/bin/activate"
+    # if [ -e $target_unpacked"/bin/activate" ]; then
+    echo checking for: $target_unpacked"/conda-meta"
+    if [ -d $target_unpacked"/conda-meta" ]; then
+        # echo "activating environment"
+        # source $target_unpacked"/bin/activate"
         # WARNING: this is weak - relies on preparer and environment ensuring this is top slot
         # --vanilla ensures that we aren't interpreting an existing kernel-fu environment variable
         # "R_HOME=''" ensures we don't get complaints from R that R_HOME is set, but we're calling a Rscript that isn't located there
         # we want to get a very plain readout of where this R install's main kernel is.
         echo "getting R path."
-	    target_kernel_path=$(R_HOME='' R_LIBS_USER='' R_LIBS_SITE='' Rscript --vanilla -e 'cat(.libPaths()[1])')
+	    target_kernel_path=$(R_HOME='' R_LIBS_USER='' R_LIBS_SITE='' $target_unpacked/bin/Rscript --vanilla -e 'cat(.libPaths()[1])')
         echo "determined: $target_kernel_path"
-        echo "deactivating"
-        source $target_unpacked"/bin/deactivate"
+        # echo "deactivating"
+        # source $target_unpacked"/bin/deactivate"
         
         echo "Updating user's catalog with $target_kernel_path"
         user_catalog_tmp=$(mktemp)
@@ -370,7 +372,8 @@ function register_r_library_in_user_catalog() # without unpacking, identify R ke
         echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in R."
         return 0
     else
-        echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
+        # echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
+        echo "ERROR: Could not confirm target is a conda environment via existence of $target_unpacked/conda-meta"
         return 1
     fi
 }
