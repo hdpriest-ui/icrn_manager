@@ -20,13 +20,14 @@ COPY start.sh /app/start.sh
 # Copy static files
 COPY static/ /app/static/
 
-# Create data directory
+# Create data directory and fix line endings
 RUN mkdir -p /app/data && \
+    sed -i 's/\r$//' /app/start.sh && \
     chmod +x /app/start.sh
 
 # Expose port 80 (nginx)
 EXPOSE 80
 
 # Use the startup script
-CMD ["/app/start.sh"]
+CMD ["/bin/bash", "/app/start.sh"]
 
