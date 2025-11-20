@@ -453,7 +453,7 @@ function register_user_overlay_in_user_catalog() # add the overlay location to t
         echo "Found."
         echo "Updating user's catalog with $user_overlay_location"
         user_catalog_tmp=$(mktemp)
-        jq -r ".\"$language\".\"$targetname\".\"$version\"."overlay_path"=\"$user_overlay_location\" " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        jq -r ".\"$language\".\"$targetname\".\"$version\".\"overlay_path\"=\"$user_overlay_location\"" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
         # user catalog now contains path to this kernel's main R library.
         echo "Done."
         echo ""
@@ -504,7 +504,7 @@ function register_r_library_in_user_catalog() # without unpacking, identify R ke
         
         echo "Updating user's catalog with $target_kernel_path"
         user_catalog_tmp=$(mktemp)
-        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_kernel_path\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_kernel_path\"}" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
         # user catalog now contains path to this kernel's main R library.
         echo "Done."
         echo ""
@@ -546,7 +546,7 @@ function register_python_library_in_user_catalog() # unpack and configure a Pyth
         # presence of $target_unpacked"/bin/activate" indicates this is a conda environment as expected        
         echo "Updating user's catalog with $language $targetname and $version"
         user_catalog_tmp=$(mktemp)
-        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_unpacked\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_unpacked\"}" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
         
         echo "Done."
         echo ""
