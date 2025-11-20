@@ -81,16 +81,27 @@
             flex-shrink: 0;
             background-color: var(--illinois-blue);
             border-color: var(--illinois-blue);
-            color: white;
+            color: white !important;
         }
         .copy-btn:hover {
             background-color: var(--illinois-blue-light);
             border-color: var(--illinois-blue-light);
-            color: white;
+            color: white !important;
         }
         .copy-btn.btn-success {
             background-color: #28a745;
             border-color: #28a745;
+            color: white !important;
+        }
+        .copy-btn.btn-outline-primary {
+            background-color: var(--illinois-blue);
+            border-color: var(--illinois-blue);
+            color: white !important;
+        }
+        .copy-btn.btn-outline-primary:hover {
+            background-color: var(--illinois-blue-light);
+            border-color: var(--illinois-blue-light);
+            color: white !important;
         }
         .metadata-section {
             background-color: white;
@@ -173,6 +184,13 @@
         .loading-spinner.active {
             display: inline-block;
         }
+        .navbar-nav .nav-link.active {
+            font-weight: 600;
+            text-decoration: underline;
+        }
+        .navbar-nav .nav-link:hover {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -181,6 +199,14 @@
             <span class="navbar-brand mb-0 h1" style="font-weight: 600;">
                 <i class="bi bi-cpu"></i> ICRN Kernel Manager
             </span>
+            <div class="navbar-nav flex-row">
+                <a class="nav-link text-white me-3" href="#" id="navViewKernels" onclick="showView('kernels'); return false;" style="cursor: pointer;">
+                    <i class="bi bi-list-ul"></i> View Kernels
+                </a>
+                <a class="nav-link text-white" href="#" id="navViewPackages" onclick="showView('packages'); return false;" style="cursor: pointer;">
+                    <i class="bi bi-box-seam"></i> View Packages
+                </a>
+            </div>
             <span class="navbar-text text-white-50" style="font-size: 0.9rem;">
                 University of Illinois
             </span>
@@ -188,6 +214,8 @@
     </nav>
 
     <div class="container-fluid main-container">
+        <!-- Kernels View -->
+        <div id="kernelsView">
         <div class="row">
             <!-- Left Sidebar: Language and Kernel Selection -->
             <div class="col-md-2">
@@ -317,6 +345,32 @@
                 </div>
             </div>
         </div>
+        </div>
+
+        <!-- Packages View -->
+        <div id="packagesView" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Search Packages</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="packageSearchInput" class="form-label">Search for a package by name:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="packageSearchInput" 
+                                   placeholder="Enter package name (e.g., numpy, pandas, ggplot2)..." 
+                                   onkeyup="handlePackageSearch(event)">
+                            <button class="btn btn-outline-primary" onclick="performPackageSearch()">
+                                <i class="bi bi-search"></i> Search
+                            </button>
+                        </div>
+                    </div>
+                    <div id="packageSearchResults">
+                        <p class="text-muted text-center">Enter a package name above to search</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Bootstrap JS -->
@@ -337,6 +391,8 @@
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadLanguages();
+            // Set kernels view as active
+            document.getElementById('navViewKernels').classList.add('active');
         });
 
         // Load available languages
@@ -650,6 +706,126 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // View switching
+        function showView(viewName) {
+            // Update navigation active state
+            document.getElementById('navViewKernels').classList.remove('active');
+            document.getElementById('navViewPackages').classList.remove('active');
+            
+            // Show/hide views
+            if (viewName === 'kernels') {
+                document.getElementById('kernelsView').style.display = 'block';
+                document.getElementById('packagesView').style.display = 'none';
+                document.getElementById('navViewKernels').classList.add('active');
+            } else if (viewName === 'packages') {
+                document.getElementById('kernelsView').style.display = 'none';
+                document.getElementById('packagesView').style.display = 'block';
+                document.getElementById('navViewPackages').classList.add('active');
+            }
+        }
+
+        // Package search functions
+        function handlePackageSearch(event) {
+            if (event.key === 'Enter') {
+                performPackageSearch();
+            }
+        }
+
+        async function performPackageSearch() {
+            const searchInput = document.getElementById('packageSearchInput');
+            const query = searchInput.value.trim();
+            const resultsDiv = document.getElementById('packageSearchResults');
+            
+            if (!query) {
+                resultsDiv.innerHTML = '<p class="text-muted text-center">Please enter a package name to search</p>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="text-center"><span class="spinner-border spinner-border-sm"></span> Searching packages...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/packages/search?query=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                displayPackageSearchResults(data);
+            } catch (error) {
+                console.error('Error searching packages:', error);
+                resultsDiv.innerHTML = '<div class="alert alert-danger">Error searching packages. Please try again.</div>';
+            }
+        }
+
+        function displayPackageSearchResults(data) {
+            const resultsDiv = document.getElementById('packageSearchResults');
+            
+            if (!data.packages || data.packages.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> No packages found matching "${escapeHtml(data.query)}"
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="mb-3">
+                    <strong>Found ${data.total_matches} package(s) matching "${escapeHtml(data.query)}"</strong>
+                </div>
+            `;
+            
+            data.packages.forEach(pkg => {
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="bi bi-box-seam"></i> ${escapeHtml(pkg.name)}
+                            </h6>
+                            <span class="badge bg-secondary">${pkg.kernel_count} kernel(s)</span>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="mb-2">Available in the following kernels:</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Language</th>
+                                            <th>Kernel Name</th>
+                                            <th>Version</th>
+                                            <th>Package Version</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                `;
+                
+                if (pkg.kernels && pkg.kernels.length > 0) {
+                    pkg.kernels.forEach(kernel => {
+                        html += `
+                            <tr>
+                                <td><span class="badge bg-info">${escapeHtml(kernel.language || 'N/A')}</span></td>
+                                <td>${escapeHtml(kernel.kernel_name || 'N/A')}</td>
+                                <td><span class="badge bg-secondary">${escapeHtml(kernel.kernel_version || 'N/A')}</span></td>
+                                <td>${escapeHtml(kernel.package_version || 'N/A')}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    html += '<tr><td colspan="4" class="text-muted text-center">No kernel information available</td></tr>';
+                }
+                
+                html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
         }
     </script>
 </body>
