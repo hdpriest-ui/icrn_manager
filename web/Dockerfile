@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY kernel_service.py .
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY start.sh .
+COPY start.sh /app/start.sh
 
 # Copy static files
 COPY static/ /app/static/
