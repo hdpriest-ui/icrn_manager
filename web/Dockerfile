@@ -17,6 +17,9 @@ COPY kernel_service.py .
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY start.sh .
 
+# Copy static files
+COPY static/ /app/static/
+
 # Create data directory
 RUN mkdir -p /app/data && \
     chmod +x /app/start.sh
