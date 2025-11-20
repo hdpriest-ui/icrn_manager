@@ -48,9 +48,21 @@ fi
 
 
 
+# Prompt the user for confirmation before proceeding with a potentially destructive operation.
+#
+# Parameters:
+#   $1 - challenge: Optional prompt string to display to the user. If not provided,
+#        defaults to "Are you sure? [y/N]"
+#
+# Returns:
+#   0 if user confirms (y/yes), exits with status 0 if user declines
+#
+# Side effects:
+#   Exits the script with status 0 if user does not confirm
 confirm() {
     local challenge=$1; shift
     # call with a prompt string or use a default
+    # function much less needed after we have stopped unpacking kernels to the users local dir; retaining in case its needed
     # https://stackoverflow.com/questions/3231804/in-bash-how-to-add-are-you-sure-y-n-to-any-command-or-alias
     read -r -p "${challenge:-Are you sure? [y/N]} " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
@@ -63,6 +75,25 @@ confirm() {
 }
 
 last_check=-1
+# Check if a kernel entry exists in the specified catalog.
+#
+# This function searches for a kernel entry in a catalog (either central or user catalog)
+# and sets the global variable 'last_check' to indicate success (1) or failure (0).
+#
+# Parameters:
+#   $1 - catalog: Path to the JSON catalog file to search
+#   $2 - language: Language of the kernel (e.g., "R", "Python")
+#   $3 - targetname: Name of the kernel to search for
+#   $4 - targetversion: Optional version number to check for
+#
+# Global variables:
+#   last_check: Set to 1 if entry found, 0 if not found. Initialized to -1.
+#
+# Returns:
+#   No return value. Results are stored in the global 'last_check' variable.
+#
+# Side effects:
+#   Prints error messages to stdout if kernel or version is not found
 check_for_catalog_entry() 
 {
     local catalog=$1; shift
@@ -93,6 +124,21 @@ check_for_catalog_entry()
     fi
 }
 
+# Retrieve and display all available versions for a specific kernel package.
+#
+# This function first verifies that the kernel exists in the catalog, then extracts
+# and displays all available version numbers for that kernel.
+#
+# Parameters:
+#   $1 - catalog: Path to the JSON catalog file to search
+#   $2 - language: Language of the kernel (e.g., "R", "Python")
+#   $3 - targetname: Name of the kernel to get versions for
+#
+# Returns:
+#   Exits with status 1 if the kernel is not found in the catalog
+#
+# Side effects:
+#   Prints available versions to stdout, or error message if kernel not found
 get_versions_for_package() 
 {
     local catalog=$1; shift
@@ -112,6 +158,19 @@ get_versions_for_package()
     echo $available_versions
 }
 
+# Display a list of all available kernels from the central repository catalog.
+#
+# This function reads the central kernel catalog and displays all available kernels
+# in a tabular format showing language, kernel name, and version for each entry.
+#
+# Parameters:
+#   None
+#
+# Returns:
+#   No return value
+#
+# Side effects:
+#   Prints a tab-separated table of available kernels to stdout
 function kernels__available() # get a list of available kernels from the central repo
 {
     icrn_catalog=${ICRN_KERNEL_CATALOG}
@@ -128,11 +187,33 @@ function kernels__available() # get a list of available kernels from the central
         done
     done
 }
+# Alias for kernels__available() - display a list of all available kernels.
+#
+# This is a convenience function that calls kernels__available() with all passed arguments.
+#
+# Parameters:
+#   All arguments are passed through to kernels__available()
+#
+# Returns:
+#   Same as kernels__available()
 function kernels__avail() # alias for available
 {
     kernels__available "$@"
 }
 
+# Display a list of kernels that have been checked out and are ready for use.
+#
+# This function reads the user's local catalog and displays all kernels that have
+# been successfully checked out, showing language, kernel name, and version.
+#
+# Parameters:
+#   None
+#
+# Returns:
+#   No return value
+#
+# Side effects:
+#   Prints a tab-separated table of checked-out kernels to stdout
 function kernels__list() # get the list of kernels already checked out and ready for use
 {
     user_catalog=${ICRN_USER_CATALOG}
@@ -150,6 +231,25 @@ function kernels__list() # get the list of kernels already checked out and ready
     done
 }
 
+# Activate a kernel that has already been checked out for use in Jupyter.
+#
+# This function activates a previously checked-out kernel, making it available for use
+# in Jupyter notebooks. For R kernels, it creates symbolic links and updates .Renviron.
+# For Python kernels, it installs the kernel spec using ipykernel.
+# The special value "none" can be used to deactivate all kernels for a language.
+#
+# Parameters:
+#   $1 - language: Language of the kernel (e.g., "R", "Python")
+#   $2 - targetname: Name of the kernel to activate, or "none" to deactivate all
+#   $3 - version: Version number of the kernel (required unless targetname is "none")
+#
+# Returns:
+#   Exits with status 1 if parameters are missing or invalid, or if kernel path not found
+#
+# Side effects:
+#   - For R: Creates symbolic link and updates .Renviron via update_r_libs.sh
+#   - For Python: Installs/uninstalls Jupyter kernel specs
+#   - Removes existing kernel installations before installing new ones
 function kernels__use() # use a kernel which is already checked out
 {
     local language=$1; shift
@@ -242,10 +342,24 @@ function kernels__use() # use a kernel which is already checked out
         esac
     else
         absolute_path=$(jq -r ".\"$language\".\"$targetname\".\"$version\".\"absolute_path\"" $user_catalog)
+        overlay_path=$(jq -r ".\"$language\".\"$targetname\".\"$version\".\"overlay_path\"" $user_catalog)
+        # absolute path for R is determined by activating the R install and finding the location of its library directory
+        # then we create a link to it
+        # user_overlay_location="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
         echo "checking for: "$absolute_path
         
         case $language in
             "R")
+                if [ -z "$overlay_path" ] || [ "$overlay_path" = "null" ]; then
+                    echo "ERROR: Overlay path missing from user catalog for $language $targetname $version."
+                    echo "Run 'icrn_manager kernels get $language $targetname $version' to re-register the overlay."
+                    exit 1
+                fi
+                if [ ! -d "$overlay_path" ]; then
+                    echo "ERROR: Overlay path recorded in user catalog does not exist: $overlay_path"
+                    echo "Consider cleaning and re-checking out this kernel."
+                    exit 1
+                fi
                 target_kernel_link_path=${ICRN_USER_KERNEL_BASE}/${targetname}
                 if [ -e "$target_kernel_link_path" ]; then
                     echo "Found existing link; removing..."
@@ -255,7 +369,7 @@ function kernels__use() # use a kernel which is already checked out
                 if [ -d "$absolute_path" ]; then
                     echo "Found. Linking and Activating..."
                     ln -s $absolute_path $target_kernel_link_path 
-                    ${target_r_libs_script} ${target_r_environ_file} $targetname
+                    ${target_r_libs_script} ${target_r_environ_file} $absolute_path $overlay_path
                     echo "Done."
                 else
                     echo "Path could not be found. There is a problem with your user catalog."
@@ -306,12 +420,131 @@ function kernels__use() # use a kernel which is already checked out
     fi
 }
 
+# Alias for kernels__use() - activate a kernel that has already been checked out.
+#
+# This is a convenience function that calls kernels__use() with all passed arguments.
+#
+# Parameters:
+#   All arguments are passed through to kernels__use()
+#
+# Returns:
+#   Same as kernels__use()
 function kernels__activate() # alias for use
 {
     "kernels__use" "$@"
 }
 
-function unpack_r_kernel() # unpack and configure an R kernel environment
+# Register the overlay directory path for a kernel in the user's catalog.
+#
+# This function updates the user catalog with the overlay path for a specific kernel.
+# The overlay directory is used for storing user-specific customizations and additional
+# packages that should be loaded alongside the kernel.
+#
+# Parameters:
+#   $1 - language: Language of the kernel (e.g., "R", "Python")
+#   $2 - targetname: Name of the kernel
+#   $3 - version: Version number of the kernel
+#
+# Returns:
+#   0 if overlay path was successfully registered, 1 if overlay directory not found
+#
+# Side effects:
+#   Updates the user catalog JSON file with the overlay_path field
+function register_user_overlay_in_user_catalog() # add the overlay location to the users catalog
+{
+    local language=$1; shift
+    local targetname=$1; shift
+    local version=$1; shift
+
+    language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
+    user_overlay_location="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
+    echo checking for: $user_overlay_location
+    if [ -e $user_overlay_location ]; then
+        echo "Found."
+        echo "Updating user's catalog with $user_overlay_location"
+        user_catalog_tmp=$(mktemp)
+        jq -r ".\"$language\".\"$targetname\".\"$version\".\"overlay_path\"=\"$user_overlay_location\"" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        # user catalog now contains path to this kernel's main R library.
+        echo "Done."
+        echo ""
+        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in R."
+        return 0
+    else
+        echo "ERROR: Could not register the overlay location."
+        return 1
+    fi
+}
+
+# Identify and register the R library location for an R kernel in the user catalog.
+#
+# This function determines the main library path of an R kernel installation by
+# executing Rscript to query the library paths. It then updates the user catalog
+# with the absolute path to the R library directory.
+#
+# Parameters:
+#   $1 - target_unpacked: Path to the unpacked R kernel conda environment
+#   $2 - language: Language of the kernel (should be "R")
+#   $3 - targetname: Name of the kernel
+#   $4 - version: Version number of the kernel
+#
+# Returns:
+#   0 if R library path was successfully registered, 1 if conda environment not found
+#
+# Side effects:
+#   - Executes Rscript to determine library paths
+#   - Updates the user catalog JSON file with the absolute_path field
+function register_r_library_in_user_catalog() # without unpacking, identify R kernel library location
+{
+    local target_unpacked=$1; shift
+    local language=$1; shift
+    local targetname=$1; shift
+    local version=$1; shift
+    
+    # echo checking for: $target_unpacked"/bin/activate"
+    # if [ -e $target_unpacked"/bin/activate" ]; then
+    echo checking for: $target_unpacked"/conda-meta"
+    if [ -d $target_unpacked"/conda-meta" ]; then
+        # WARNING: this is weak - relies on preparer and environment ensuring this is top slot
+        # --vanilla ensures that we aren't interpreting an existing kernel-fu environment variable
+        # "R_HOME=''" ensures we don't get complaints from R that R_HOME is set, but we're calling a Rscript that isn't located there
+        # we want to get a very plain readout of where this R install's main kernel is.
+        echo "getting R path."
+	    target_kernel_path=$(R_HOME='' R_LIBS_USER='' R_LIBS_SITE='' $target_unpacked/bin/Rscript --vanilla -e 'cat(.libPaths()[1])')
+        echo "determined: $target_kernel_path"
+        
+        echo "Updating user's catalog with $target_kernel_path"
+        user_catalog_tmp=$(mktemp)
+        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_kernel_path\"}" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        # user catalog now contains path to this kernel's main R library.
+        echo "Done."
+        echo ""
+        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in R."
+        return 0
+    else
+        # echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
+        echo "ERROR: Could not confirm target is a conda environment via existence of $target_unpacked/conda-meta"
+        return 1
+    fi
+}
+
+# Register the Python kernel environment path in the user catalog.
+#
+# This function updates the user catalog with the absolute path to a Python kernel's
+# conda environment. The environment must have a bin/activate script to be recognized
+# as a valid conda environment.
+#
+# Parameters:
+#   $1 - target_unpacked: Path to the unpacked Python kernel conda environment
+#   $2 - language: Language of the kernel (should be "Python")
+#   $3 - targetname: Name of the kernel
+#   $4 - version: Version number of the kernel
+#
+# Returns:
+#   0 if Python environment path was successfully registered, 1 if activation script not found
+#
+# Side effects:
+#   Updates the user catalog JSON file with the absolute_path field
+function register_python_library_in_user_catalog() # unpack and configure a Python kernel environment
 {
     local target_unpacked=$1; shift
     local language=$1; shift
@@ -319,55 +552,11 @@ function unpack_r_kernel() # unpack and configure an R kernel environment
     local version=$1; shift
     
     echo checking for: $target_unpacked"/bin/activate"
-    if [ -e $target_unpacked"bin/activate" ]; then
-        echo "activating environment"
-        source $target_unpacked"bin/activate"
-        echo "doing unpack"
-        conda-unpack
-        # WARNING: this is weak - relies on preparer and environment ensuring this is top slot
-        # --vanilla ensures that we aren't interpreting an existing kernel-fu environment variable
-        # "R_HOME=''" ensures we don't get complaints from R that R_HOME is set, but we're calling a Rscript that isn't located there
-        # we want to get a very plain readout of where this R install's main kernel is.
-        echo "getting R path."
-	    target_kernel_path=$(R_HOME='' Rscript --vanilla -e 'cat(.libPaths()[1])')
-        echo "determined: $target_kernel_path"
-        echo "deactivating"
-        source $target_unpacked"/bin/deactivate"
-        
+    if [ -e $target_unpacked"/bin/activate" ]; then
+        # presence of $target_unpacked"/bin/activate" indicates this is a conda environment as expected        
         echo "Updating user's catalog with $language $targetname and $version"
         user_catalog_tmp=$(mktemp)
-        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_kernel_path\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
-        
-        echo "Done."
-        echo ""
-        echo "Be sure to call \"icrn_manager kernels use $language $targetname $version\" to begin using this kernel in R."
-        return 0
-    else
-        echo "ERROR: Could not find conda environment activation script at $target_unpacked/bin/activate"
-        return 1
-    fi
-}
-
-function unpack_python_kernel() # unpack and configure a Python kernel environment
-{
-    local target_unpacked=$1; shift
-    local language=$1; shift
-    local targetname=$1; shift
-    local version=$1; shift
-    
-    echo checking for: $target_unpacked"bin/activate"
-    if [ -e $target_unpacked"bin/activate" ]; then
-        echo "activating environment"
-        source $target_unpacked"bin/activate"
-        chmod -R u+w $target_unpacked
-        echo "doing unpack"
-        conda-unpack
-        echo "deactivating"
-        source $target_unpacked"/bin/deactivate"
-        
-        echo "Updating user's catalog with $language $targetname and $version"
-        user_catalog_tmp=$(mktemp)
-        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_unpacked\"} " "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
+        jq -r ".\"$language\".\"$targetname\".\"$version\"={\"absolute_path\":\"$target_unpacked\"}" "$user_catalog" > "$user_catalog_tmp" && mv "$user_catalog_tmp" "$user_catalog"
         
         echo "Done."
         echo ""
@@ -379,7 +568,45 @@ function unpack_python_kernel() # unpack and configure a Python kernel environme
     fi
 }
 
-function kernels__get() # get a kernel from the central repo
+# Alias for kernels__get_in_place() - check out a kernel from the central repository.
+#
+# This is a convenience function that calls kernels__get_in_place() with all passed arguments.
+#
+# Parameters:
+#   All arguments are passed through to kernels__get_in_place()
+#
+# Returns:
+#   Same as kernels__get_in_place()
+function kernels__get() # alias for get in place
+{
+    "kernels__get_in_place" "$@"
+}
+
+# Check out a kernel from the central repository without relocating it.
+#
+# This function retrieves a kernel from the central repository and registers it in the
+# user catalog. The kernel remains in its original location in the central repository.
+# For R kernels, it also creates an overlay directory for user-specific packages.
+# The function validates input parameters to prevent path traversal and wildcard attacks.
+#
+# Parameters:
+#   $1 - language: Language of the kernel (e.g., "R", "Python")
+#   $2 - targetname: Name of the kernel to check out
+#   $3 - version: Version number of the kernel
+#
+# Returns:
+#   Exits with status 1 if:
+#     - Parameters are missing or invalid
+#     - Invalid characters detected in kernel name or version (security check)
+#     - Kernel not found in central catalog
+#     - Target environment location not found
+#     - Security violation detected (path would escape intended directory)
+#
+# Side effects:
+#   - Creates overlay directory for R kernels
+#   - Updates user catalog with kernel paths
+#   - Validates input to prevent security vulnerabilities
+function kernels__get_in_place() # prep for 'use' without relocating kernel
 {
     local language=$1; shift
     local targetname=$1; shift
@@ -415,58 +642,51 @@ function kernels__get() # get a kernel from the central repo
     echo ""
     
     # get the target file from the ICRN catalog
-    target_file=$(jq -r ".$language.$targetname.\"$version\".\"conda-pack\"" $icrn_catalog)
-    if [ ! "$target_file" = "null" ]; then
-        # Determine the appropriate kernel path based on language
-        case $language in
-            "R")
-                pack_filepath=${ICRN_R_KERNELS}/$targetname/$version/$target_file
-                ;;
-            "Python")
-                pack_filepath=${ICRN_PYTHON_KERNELS}/$targetname/$version/$target_file
-                ;;
-            *)
-                echo "ERROR: Unsupported language '$language' for kernel unpacking"
-                echo "Supported languages: R, Python"
-                exit 1
-                ;;
-        esac
-        
-        if [ -e $pack_filepath ]; then
-            # identify target location, make it if it doesn't exist, and then unpack to it
+    # target_file=$(jq -r ".$language.$targetname.\"$version\".\"conda-pack\"" $icrn_catalog)
+    target_location=$(jq -r ".$language.$targetname.\"$version\".\"environment_location\"" $icrn_catalog)
+    if [ ! "$target_location" = "null" ]; then
+                
+        # language, targetname, and version specify the path for a conda-activate command
+        # language, targetname, and version also specify the info for the overlay directory creation
+        # we need to get the R-path needed and register it in the user's config
+        # we need to get the users overlay library, and register it in the user's config
+    
+        if [ -e $target_location ]; then
+            # identify overlay library location, make it if it doesn't exist
+            # what to do if it DOES exist? - nothing, i think.
             # Create language-specific subdirectory structure
             language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
-            target_unpacked="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
+            user_overlay_location="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
             
             # Safety check: ensure the path is within the intended directory
-            if [[ "$target_unpacked" != "$ICRN_USER_KERNEL_BASE"* ]]; then
+            if [[ "$user_overlay_location" != "$ICRN_USER_KERNEL_BASE"* ]]; then
                 echo "Error: Security violation - target path would escape intended directory"
-                echo "Target: $target_unpacked"
+                echo "Target: $user_overlay_location"
                 echo "Base: $ICRN_USER_KERNEL_BASE"
                 exit 1
             fi
             
-            if [ ! -d "$target_unpacked" ]; then
-                echo "Making target directory: $target_unpacked"
-                mkdir -p "$target_unpacked"
-                echo "Checking out kernel..."
-                tar -xzf "$pack_filepath" -C "$target_unpacked"
+            if [ ! -d "$user_overlay_location" ]; then
+                echo "Making target directory: $user_overlay_location"
+                mkdir -p "$user_overlay_location"
             else
-                echo "WARNING: target directory: $target_unpacked already exists!"
-                echo "Overwriting existing files from packed kernel..."
-                tar -xzf "$pack_filepath" -U -C "$target_unpacked"
-                echo "Note that this risks leaving this kernel in an intermediate state."
-                echo "It is recommended that you remove the kernel entirely by running:"
-                echo "'rm -rf $target_unpacked'"
+                echo "NOTICE: target directory: $user_overlay_location already exists."
             fi
             
             # Use language-specific unpacking function
             case $language in
                 "R")
-                    unpack_r_kernel "$target_unpacked" "$language" "$targetname" "$version"
+                    echo "registering R library"
+                    register_r_library_in_user_catalog "$target_location" "$language" "$targetname" "$version"
+                    echo "registering user overlay"
+                    if ! register_user_overlay_in_user_catalog "$language" "$targetname" "$version"; then
+                        echo "ERROR: Failed to register user overlay for $language $targetname $version"
+                        echo "Please ensure ${ICRN_USER_KERNEL_BASE} is writable and retry the checkout."
+                        exit 1
+                    fi
                     ;;
                 "Python")
-                    unpack_python_kernel "$target_unpacked" "$language" "$targetname" "$version"
+                    register_python_library_in_user_catalog "$target_location" "$language" "$targetname" "$version"
                     ;;
                 *)
                     echo "ERROR: Unsupported language '$language' for kernel unpacking"
@@ -475,7 +695,7 @@ function kernels__get() # get a kernel from the central repo
                     ;;
             esac
         else
-            echo "ERROR: could not find target pack file: $pack_filepath"
+            echo "ERROR: could not find target environment location: $target_location"
             exit 1
         fi
     else
@@ -485,6 +705,23 @@ function kernels__get() # get a kernel from the central repo
     fi
 }
 
+# Update a user's copy of a kernel from the central repository.
+#
+# This function is currently not implemented. It is intended to update an existing
+# checked-out kernel to a newer version or refresh it from the central repository.
+#
+# unclear this will be required under new approach of non-relocation of central kernels
+# perhaps re-point to newer version of central kernel, and update R-packages?
+# low on to-do list
+#
+# Parameters:
+#   (To be determined when implemented)
+#
+# Returns:
+#   Currently exits with status 1 (not implemented)
+#
+# Side effects:
+#   None (function not yet implemented)
 function kernels__update() # update users copy of a kernel from central repo
 {
     echo "entered 'update' subcommand"
@@ -492,6 +729,27 @@ function kernels__update() # update users copy of a kernel from central repo
     exit 1    
 }
 
+# Remove a kernel entry from the user's catalog.
+#
+# This function removes a kernel entry from the user catalog. If a version is specified,
+# only that version is removed. If no version is specified, all versions of the kernel
+# are removed. If removing a version leaves no versions for a kernel, the entire
+# kernel entry is removed from the catalog.
+#
+# Parameters:
+#   $1 - language: Language of the kernel (e.g., "R", "Python")
+#   $2 - targetname: Name of the kernel to remove
+#   $3 - version: Optional version number. If omitted, all versions are removed
+#
+# Returns:
+#   Exits with status 1 if:
+#     - Required parameters are missing
+#     - Kernel not found in user catalog
+#     - Specified version not found in user catalog
+#
+# Side effects:
+#   - Updates the user catalog JSON file by removing the specified entry
+#   - Removes empty kernel entries if all versions are removed
 function kernels__clean() # remove a kernel entry from the users catalog
 {
     local language=$1; shift
@@ -551,98 +809,29 @@ function kernels__clean() # remove a kernel entry from the users catalog
     fi
 }
 
-function kernels__remove() # remove a users copy of a kernel
-{
-    local language=$1; shift
-    local targetname=$1; shift
-    local version=$1; shift
-
-    icrn_catalog=${ICRN_KERNEL_CATALOG}
-    user_catalog=${ICRN_USER_CATALOG}
-    echo ""
-    echo "ICRN Catalog:"
-    echo $icrn_catalog
-    echo "User Catalog:"
-    echo $user_catalog
-    echo ""
- 
-    # Validate input parameters to prevent path traversal and wildcard attacks
-    if [[ "$targetname" =~ [\]\/\[\*\?\] ]] || [[ "$version" =~ [\]\/\[\*\?\] ]]; then
-        echo "Error: Invalid characters in kernel name or version. Cannot contain wildcards (*?[]) or path separators (/)"
-        exit 1  
-    fi
-    
-    if [ -z $version ] || [ -z $targetname ] || [ -z $language ]; then
-        help
-        echo ""
-        echo "Can't proceed without language, target kernel and version."
-        echo "usage: icrn_manager kernels remove <language> <kernel name> <version number>"
-        echo ""
-        exit 1
-    else
-        echo "Desired kernel to scrub from user catalog:"
-        echo "Language: "$language
-        echo "Kernel: "$targetname
-        echo "Version: "$version
-        echo ""
-    fi
-    check_for_catalog_entry "$user_catalog" "$language" "$targetname" "$version"
-    if [ $last_check = 0 ]; then
-        echo "$targetname and $version not present in user catalog at $user_catalog"
-        get_versions_for_package $user_catalog $language $targetname
-        exit 1
-    else
-        last_check=-1
-    fi
-    echo "Removing package files, and kernel entries for: $@"
-    confirm "Are you sure? [Y/n]"
-    
-    # Construct the target path safely
-    # Create language-specific subdirectory structure
-    language_lower=$(echo "$language" | tr '[:upper:]' '[:lower:]')
-    target_unpacked="${ICRN_USER_KERNEL_BASE}/${language_lower}/${targetname}-${version}/"
-    
-    # Additional safety check: ensure the path is within the intended directory
-    # Use realpath to resolve any potential symlinks and normalize the path
-    if command -v realpath >/dev/null 2>&1; then
-        resolved_target=$(realpath "$target_unpacked" 2>/dev/null)
-        resolved_base=$(realpath "$ICRN_USER_KERNEL_BASE" 2>/dev/null)
-        
-        if [ -n "$resolved_target" ] && [ -n "$resolved_base" ]; then
-            # Check if the resolved target path starts with the resolved base path
-            if [[ "$resolved_target" != "$resolved_base"* ]]; then
-                echo "Error: Security violation - target path would escape intended directory"
-                echo "Target: $resolved_target"
-                echo "Base: $resolved_base"
-                exit 1
-            fi
-        fi
-    fi
-    
-    # Final validation: ensure the path is within the kernel base directory
-    if [[ "$target_unpacked" != "$ICRN_USER_KERNEL_BASE"* ]]; then
-        echo "Error: Security violation - target path would escape intended directory"
-        echo "Target: $target_unpacked"
-        echo "Base: $ICRN_USER_KERNEL_BASE"
-        exit 1
-    fi
-    
-    if [ -e "$target_unpacked" ]; then
-        echo "Removing: $target_unpacked"
-        rm -rf "$target_unpacked"
-        if [ $? -eq 0 ]; then
-            echo "Successfully removed kernel files from: $target_unpacked"
-        else
-            echo "Error: Failed to remove kernel files from: $target_unpacked"
-            exit 1
-        fi
-    else
-        echo "Could not locate $target_unpacked - exiting..."
-        exit 1
-    fi
-    kernels__clean "$language" "$targetname" "$version"
-}
-
+# Initialize the ICRN Manager by creating necessary directories and configuration files.
+#
+# This function sets up the initial environment for ICRN Manager, creating:
+# - User base directory (~/.icrn/)
+# - Kernel base directory (~/.icrn/icrn_kernels/)
+# - Language-specific subdirectories (r/, python/)
+# - User catalog JSON file
+# - Manager configuration JSON file
+#
+# It also validates that the central repository and its components exist.
+#
+# Parameters:
+#   $1 - central_repository: Optional path to the central kernel repository.
+#        If not provided, uses the default path (/sw/icrn/jupyter/icrn_ncsa_resources/Kernels)
+#
+# Returns:
+#   No return value
+#
+# Side effects:
+#   - Creates directory structure in user's home directory
+#   - Creates and populates configuration files
+#   - Updates existing configuration if central_repository is provided
+#   - Prints warnings if central repository components are not found
 function kernels__init() # create base resources
 {
     echo "Initializing icrn kernel resources..."
@@ -751,6 +940,24 @@ function kernels__init() # create base resources
     echo ""
 }
 
+# Main launcher function for kernel management subcommands.
+#
+# This function routes kernel-related subcommands to their respective handler functions.
+# It provides a unified interface for all kernel operations and includes confirmation
+# prompts for destructive operations like 'clean'.
+#
+# Parameters:
+#   $1 - cmdname: Subcommand name (e.g., "init", "list", "available", "get", "use", "clean")
+#   $@ - Additional arguments passed to the subcommand handler
+#
+# Returns:
+#   Exits with status 1 if:
+#     - No subcommand is specified
+#     - Invalid subcommand name is provided
+#
+# Side effects:
+#   - Prompts for confirmation before executing 'clean' subcommand
+#   - Calls the appropriate subcommand handler function
 function kernels() # launcher
 {
     local cmdname=$1; shift
@@ -760,8 +967,6 @@ function kernels() # launcher
         echo ""
         help
         exit 1
-    elif [ "$cmdname" = "remove" ]; then
-        kernels__remove "$@"
     elif [ "$cmdname" = "clean" ]; then
         echo "Removing kernel entries for : $@"
         confirm "Are you sure? [Y/n]"
@@ -778,6 +983,19 @@ function kernels() # launcher
 
 }
 
+# Display usage information and available commands for ICRN Manager.
+#
+# This function prints a help message showing the correct usage syntax and
+# available subcommands for the icrn_manager tool.
+#
+# Parameters:
+#   None
+#
+# Returns:
+#   No return value
+#
+# Side effects:
+#   Prints help text to stdout
 function help() # Show a list of functions
 {
     # grep "^function" $0
@@ -789,7 +1007,6 @@ function help() # Show a list of functions
     echo "    list"
     echo "    available"
     echo "    get <language> <kernel> <version>"
-    echo "    remove"
     echo "    use <language> <kernel> <version>"
     echo "    use <language> none"
     echo " "
