@@ -3,14 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICRN Kernel Manager</title>
+    <title>ICRN Kernel Manager - University of Illinois</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts for Illinois-style typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --illinois-orange: #FF552E;
+            --illinois-blue: #13294B;
+            --illinois-blue-light: #1E3A5F;
+            --illinois-gray: #6C757D;
+            --illinois-gray-light: #F5F5F5;
+        }
+        
         body {
-            background-color: #f8f9fa;
+            background-color: var(--illinois-gray-light);
+            font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .main-container {
             padding: 20px;
@@ -35,33 +46,123 @@
             transition: all 0.2s;
         }
         .kernel-item:hover {
-            background-color: #e9ecef;
-            border-color: #0d6efd;
+            background-color: #f0f0f0;
+            border-color: var(--illinois-orange);
         }
         .kernel-item.active {
-            background-color: #0d6efd;
+            background-color: var(--illinois-orange);
             color: white;
-            border-color: #0d6efd;
+            border-color: var(--illinois-orange);
         }
         .package-table-container {
             margin-top: 20px;
         }
         .command-box {
-            background-color: #f8f9fa;
+            background-color: white;
             border: 1px solid #dee2e6;
+            border-left: 3px solid var(--illinois-orange);
             border-radius: 0.375rem;
-            padding: 15px;
-            margin-bottom: 15px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         .command-text {
             font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #212529;
             margin: 0;
             word-break: break-all;
+            flex: 1;
+            padding-right: 10px;
         }
         .copy-btn {
-            margin-top: 10px;
+            flex-shrink: 0;
+            background-color: var(--illinois-blue);
+            border-color: var(--illinois-blue);
+            color: white;
+        }
+        .copy-btn:hover {
+            background-color: var(--illinois-blue-light);
+            border-color: var(--illinois-blue-light);
+            color: white;
+        }
+        .copy-btn.btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        .metadata-section {
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-top: 3px solid var(--illinois-blue);
+            border-radius: 0.375rem;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .metadata-item {
+            margin-bottom: 10px;
+        }
+        .metadata-label {
+            font-weight: 600;
+            color: var(--illinois-blue);
+            font-size: 0.85rem;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .metadata-value {
+            color: #212529;
+            font-size: 0.95rem;
+        }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            color: var(--illinois-blue);
+            font-weight: 600;
+        }
+        .sortable:hover {
+            background-color: var(--illinois-gray-light);
+            color: var(--illinois-orange);
+        }
+        .sort-icon {
+            margin-left: 5px;
+            opacity: 0.5;
+            color: var(--illinois-blue);
+        }
+        .sort-icon.active {
+            opacity: 1;
+            color: var(--illinois-orange);
+        }
+        .card {
+            border: 1px solid #dee2e6;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: var(--illinois-blue);
+            color: white;
+            font-weight: 600;
+            border-bottom: 2px solid var(--illinois-orange);
+        }
+        .badge.bg-secondary {
+            background-color: var(--illinois-gray) !important;
+        }
+        .badge.bg-info {
+            background-color: var(--illinois-blue-light) !important;
+        }
+        .form-select:focus, .form-control:focus {
+            border-color: var(--illinois-orange);
+            box-shadow: 0 0 0 0.2rem rgba(255, 85, 46, 0.25);
+        }
+        .btn-outline-primary {
+            border-color: var(--illinois-blue);
+            color: var(--illinois-blue);
+        }
+        .btn-outline-primary:hover {
+            background-color: var(--illinois-blue);
+            border-color: var(--illinois-blue);
+            color: white;
         }
         .version-badge {
             margin-left: 10px;
@@ -75,10 +176,13 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-primary">
+    <nav class="navbar navbar-dark" style="background-color: var(--illinois-blue);">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">
+            <span class="navbar-brand mb-0 h1" style="font-weight: 600;">
                 <i class="bi bi-cpu"></i> ICRN Kernel Manager
+            </span>
+            <span class="navbar-text text-white-50" style="font-size: 0.9rem;">
+                University of Illinois
             </span>
         </div>
     </nav>
@@ -86,7 +190,7 @@
     <div class="container-fluid main-container">
         <div class="row">
             <!-- Left Sidebar: Language and Kernel Selection -->
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Select Language</h5>
@@ -111,14 +215,39 @@
             </div>
 
             <!-- Main Content: Package Table and Commands -->
-            <div class="col-md-9">
+            <div class="col-md-10">
                 <div id="kernelDetails" style="display: none;">
+                    <!-- Metadata Section -->
+                    <div class="metadata-section mb-3">
+                        <h5 class="mb-3">Kernel Information</h5>
+                        <div class="row">
+                            <div class="col-md-12 metadata-item">
+                                <div class="metadata-label">Description</div>
+                                <div class="metadata-value" id="kernelDescription">Description will be available in future updates</div>
+                            </div>
+                            <div class="col-md-4 metadata-item">
+                                <div class="metadata-label">Language Version</div>
+                                <div class="metadata-value" id="languageVersion">-</div>
+                            </div>
+                            <div class="col-md-4 metadata-item">
+                                <div class="metadata-label">Package Count</div>
+                                <div class="metadata-value" id="metadataPackageCount">-</div>
+                            </div>
+                            <div class="col-md-4 metadata-item">
+                                <div class="metadata-label">Indexed Date</div>
+                                <div class="metadata-value" id="indexedDate">-</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Command Boxes -->
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <div class="command-box">
-                                <label class="form-label fw-bold">Get Kernel Command:</label>
-                                <p id="getCommand" class="command-text"></p>
+                                <div style="flex: 1;">
+                                    <label class="form-label fw-bold" style="font-size: 0.85rem; margin-bottom: 3px;">Get Kernel Command:</label>
+                                    <p id="getCommand" class="command-text"></p>
+                                </div>
                                 <button class="btn btn-sm btn-outline-primary copy-btn" onclick="copyToClipboard('getCommand', event)">
                                     <i class="bi bi-clipboard"></i> Copy
                                 </button>
@@ -126,8 +255,10 @@
                         </div>
                         <div class="col-md-6">
                             <div class="command-box">
-                                <label class="form-label fw-bold">Use Kernel Command:</label>
-                                <p id="useCommand" class="command-text"></p>
+                                <div style="flex: 1;">
+                                    <label class="form-label fw-bold" style="font-size: 0.85rem; margin-bottom: 3px;">Use Kernel Command:</label>
+                                    <p id="useCommand" class="command-text"></p>
+                                </div>
                                 <button class="btn btn-sm btn-outline-primary copy-btn" onclick="copyToClipboard('useCommand', event)">
                                     <i class="bi bi-clipboard"></i> Copy
                                 </button>
@@ -142,13 +273,26 @@
                             <span class="badge bg-secondary" id="packageCount">0 packages</span>
                         </div>
                         <div class="card-body">
+                            <div class="mb-3">
+                                <label for="packageFilter" class="form-label">Filter Packages:</label>
+                                <input type="text" class="form-control" id="packageFilter" placeholder="Type to filter by package name..." onkeyup="filterPackages()">
+                            </div>
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover">
+                                <table class="table table-striped table-hover" id="packageTable">
                                     <thead>
                                         <tr>
-                                            <th>Package Name</th>
-                                            <th>Version</th>
-                                            <th>Source</th>
+                                            <th class="sortable" onclick="sortTable(0)">
+                                                Package Name
+                                                <i class="bi bi-arrow-down-up sort-icon" id="sortIcon0"></i>
+                                            </th>
+                                            <th class="sortable" onclick="sortTable(1)">
+                                                Version
+                                                <i class="bi bi-arrow-down-up sort-icon" id="sortIcon1"></i>
+                                            </th>
+                                            <th class="sortable" onclick="sortTable(2)">
+                                                Source
+                                                <i class="bi bi-arrow-down-up sort-icon" id="sortIcon2"></i>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody id="packageTableBody">
@@ -183,6 +327,11 @@
         let currentLanguage = 'R';
         let currentKernel = null;
         let currentVersion = null;
+        let currentKernelData = null;
+        let allPackages = [];
+        let filteredPackages = [];
+        let sortColumn = -1;
+        let sortDirection = 1; // 1 for ascending, -1 for descending
         const API_BASE = '/api';
 
         // Initialize on page load
@@ -248,18 +397,25 @@
                 kernelList.innerHTML = '';
                 
                 if (data.kernels && data.kernels.length > 0) {
+                    // We need to get kernel details to show language version
+                    // For now, we'll load them and show placeholder
                     data.kernels.forEach(kernel => {
                         kernel.versions.forEach(version => {
                             const kernelItem = document.createElement('div');
                             kernelItem.className = 'kernel-item';
+                            kernelItem.setAttribute('data-kernel-name', kernel.name);
+                            kernelItem.setAttribute('data-version', version);
                             kernelItem.innerHTML = `
                                 <strong>${kernel.name}</strong>
                                 <span class="badge bg-secondary version-badge">${version}</span>
+                                <div class="text-muted" style="font-size: 0.75rem; margin-top: 3px;" id="lang-version-${kernel.name}-${version}">Loading...</div>
                             `;
                             kernelItem.addEventListener('click', function() {
                                 selectKernel(language, kernel.name, version, this);
                             });
                             kernelList.appendChild(kernelItem);
+                            // Load kernel details to get language version
+                            loadKernelDetailsForList(language, kernel.name, version);
                         });
                     });
                 } else {
@@ -271,8 +427,24 @@
             }
         }
 
+        // Load kernel details for list display (language version)
+        async function loadKernelDetailsForList(language, kernelName, version) {
+            try {
+                const response = await fetch(`${API_BASE}/kernel/${encodeURIComponent(language)}/${encodeURIComponent(kernelName)}/${encodeURIComponent(version)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const langVersionEl = document.getElementById(`lang-version-${kernelName}-${version}`);
+                    if (langVersionEl) {
+                        langVersionEl.textContent = `(${data.language_version || 'N/A'})`;
+                    }
+                }
+            } catch (error) {
+                // Silently fail for list display
+            }
+        }
+
         // Select a kernel
-        function selectKernel(language, kernelName, version, element) {
+        async function selectKernel(language, kernelName, version, element) {
             // Update active state
             document.querySelectorAll('.kernel-item').forEach(item => {
                 item.classList.remove('active');
@@ -285,6 +457,17 @@
             currentKernel = kernelName;
             currentVersion = version;
             
+            // Load kernel details first
+            try {
+                const response = await fetch(`${API_BASE}/kernel/${encodeURIComponent(language)}/${encodeURIComponent(kernelName)}/${encodeURIComponent(version)}`);
+                if (response.ok) {
+                    currentKernelData = await response.json();
+                    updateMetadata(currentKernelData);
+                }
+            } catch (error) {
+                console.error('Error loading kernel details:', error);
+            }
+            
             // Update commands
             updateCommands(language, kernelName, version);
             
@@ -296,10 +479,22 @@
             document.getElementById('noSelection').style.display = 'none';
         }
 
+        // Update metadata section
+        function updateMetadata(kernelData) {
+            document.getElementById('languageVersion').textContent = kernelData.language_version || '-';
+            document.getElementById('metadataPackageCount').textContent = kernelData.package_count || '-';
+            if (kernelData.indexed_date) {
+                const date = new Date(kernelData.indexed_date);
+                document.getElementById('indexedDate').textContent = date.toLocaleDateString();
+            } else {
+                document.getElementById('indexedDate').textContent = '-';
+            }
+        }
+
         // Update command text boxes
         function updateCommands(language, kernelName, version) {
-            const getCmd = `./icrn_manager kernels get ${language} ${kernelName} ${version}`;
-            const useCmd = `./icrn_manager kernels use ${language} ${kernelName} ${version}`;
+            const getCmd = `icrn_manager kernels get ${language} ${kernelName} ${version}`;
+            const useCmd = `icrn_manager kernels use ${language} ${kernelName} ${version}`;
             
             document.getElementById('getCommand').textContent = getCmd;
             document.getElementById('useCommand').textContent = useCmd;
@@ -320,19 +515,13 @@
                 const manifest = await response.json();
                 
                 if (manifest.packages && manifest.packages.length > 0) {
-                    tableBody.innerHTML = '';
-                    manifest.packages.forEach(pkg => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${escapeHtml(pkg.name)}</td>
-                            <td>${escapeHtml(pkg.version || 'N/A')}</td>
-                            <td><span class="badge bg-info">${escapeHtml(pkg.source || 'N/A')}</span></td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
-                    
+                    allPackages = manifest.packages;
+                    filteredPackages = [...allPackages];
+                    renderPackages();
                     document.getElementById('packageCount').textContent = `${manifest.packages.length} packages`;
                 } else {
+                    allPackages = [];
+                    filteredPackages = [];
                     tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No packages found</td></tr>';
                     document.getElementById('packageCount').textContent = '0 packages';
                 }
@@ -371,6 +560,89 @@
         function hideKernelDetails() {
             document.getElementById('kernelDetails').style.display = 'none';
             document.getElementById('noSelection').style.display = 'block';
+        }
+
+        // Render packages table
+        function renderPackages() {
+            const tableBody = document.getElementById('packageTableBody');
+            tableBody.innerHTML = '';
+            
+            if (filteredPackages.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No packages match the filter</td></tr>';
+                return;
+            }
+            
+            filteredPackages.forEach(pkg => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${escapeHtml(pkg.name)}</td>
+                    <td>${escapeHtml(pkg.version || 'N/A')}</td>
+                    <td><span class="badge bg-info">${escapeHtml(pkg.source || 'N/A')}</span></td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Update package count
+            document.getElementById('packageCount').textContent = `${filteredPackages.length} of ${allPackages.length} packages`;
+        }
+
+        // Filter packages by name
+        function filterPackages() {
+            const filterValue = document.getElementById('packageFilter').value.toLowerCase();
+            filteredPackages = allPackages.filter(pkg => 
+                pkg.name.toLowerCase().includes(filterValue)
+            );
+            renderPackages();
+        }
+
+        // Sort table
+        function sortTable(columnIndex) {
+            // Reset all sort icons
+            for (let i = 0; i < 3; i++) {
+                const icon = document.getElementById(`sortIcon${i}`);
+                icon.className = 'bi bi-arrow-down-up sort-icon';
+            }
+            
+            // If clicking same column, reverse direction
+            if (sortColumn === columnIndex) {
+                sortDirection *= -1;
+            } else {
+                sortColumn = columnIndex;
+                sortDirection = 1;
+            }
+            
+            // Update sort icon
+            const icon = document.getElementById(`sortIcon${columnIndex}`);
+            if (sortDirection === 1) {
+                icon.className = 'bi bi-arrow-down sort-icon active';
+            } else {
+                icon.className = 'bi bi-arrow-up sort-icon active';
+            }
+            
+            // Sort packages
+            filteredPackages.sort((a, b) => {
+                let aVal, bVal;
+                switch(columnIndex) {
+                    case 0: // Package Name
+                        aVal = a.name || '';
+                        bVal = b.name || '';
+                        break;
+                    case 1: // Version
+                        aVal = a.version || '';
+                        bVal = b.version || '';
+                        break;
+                    case 2: // Source
+                        aVal = a.source || '';
+                        bVal = b.source || '';
+                        break;
+                }
+                
+                if (aVal < bVal) return -1 * sortDirection;
+                if (aVal > bVal) return 1 * sortDirection;
+                return 0;
+            });
+            
+            renderPackages();
         }
 
         // Escape HTML to prevent XSS
