@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-json-api
+  labels:
+    app: nginx-json-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-json-api
+  template:
+    metadata:
+      labels:
+        app: nginx-json-api
+    spec:
+      containers:
+        - name: nginx-json-api
+          image: hdpriest0uiuc/nginx-json-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: JSON_FILE_PATH
+              value: "/app/data/reference.json"
+            - name: API_PORT
+              value: "8000"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: data-volume
+          emptyDir: {}
+

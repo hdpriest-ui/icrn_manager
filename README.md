@@ -144,6 +144,7 @@ The project includes a comprehensive test suite to ensure reliability and code q
 ./tests/run_tests.sh update_r_libs    # R library management  
 ./tests/run_tests.sh config           # Configuration validation
 ./tests/run_tests.sh help             # Help and basic commands
+./tests/run_tests.sh kernel_indexer   # Kernel indexing and collation
 ```
 
 **Test Features:**

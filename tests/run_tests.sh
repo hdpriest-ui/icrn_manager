@@ -30,6 +30,7 @@ while [[ $# -gt 0 ]]; do
             echo "  kernels          Test core kernel operations"
             echo "  update_r_libs    Test update_r_libs.sh functionality"
             echo "  config           Test configuration validation"
+            echo "  kernel_indexer   Test kernel_indexer functionality"
             echo "  all              Run all test suites (default)"
             echo ""
             echo "Examples:"
@@ -111,6 +112,9 @@ run_all_tests() {
     # Run configuration tests
     run_test_suite "Configuration and Validation" "$SCRIPT_DIR/test_config.sh" "Testing configuration validation and error handling"
     
+    # Run kernel_indexer tests
+    run_test_suite "Kernel Indexer" "$SCRIPT_DIR/test_kernel_indexer.sh" "Testing kernel_indexer functionality (indexing and collation)"
+    
     # Print summary
     print_test_summary
     
@@ -159,9 +163,12 @@ run_specific_suite() {
         "config")
             run_test_suite "Configuration and Validation" "$SCRIPT_DIR/test_config.sh" "Testing configuration validation"
             ;;
+        "kernel_indexer")
+            run_test_suite "Kernel Indexer" "$SCRIPT_DIR/test_kernel_indexer.sh" "Testing kernel_indexer functionality"
+            ;;
         *)
             echo "Unknown test suite: $suite_name"
-            echo "Available suites: help, kernels, update_r_libs, config"
+            echo "Available suites: help, kernels, update_r_libs, config, kernel_indexer"
             echo ""
             echo "Test runner completed with invalid suite specification."
             exit 0

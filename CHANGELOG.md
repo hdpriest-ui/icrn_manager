@@ -5,7 +5,14 @@ All notable changes to the ICRN Kernel Manager project will be documented in thi
 ## [Unreleased] - 2024-07-24
 
 ### Added
-- **Comprehensive Test Suite**: Added a complete test suite with 32 tests covering all major functionality
+- **Kernel Indexer**: New `kernel_indexer` script for indexing kernels and generating package manifests
+  - Indexes R and Python kernels and extracts package information
+  - Generates JSON manifest files for each kernel with package metadata
+  - Collates manifests into kernel-centric and package-centric indexes
+  - Supports filtering by language, kernel name, and version
+  - Extracts packages from both conda and language-specific package managers
+- **Comprehensive Test Suite**: Added a complete test suite with 52+ tests covering all major functionality
+  - `test_kernel_indexer.sh`: 20 tests covering kernel indexing and collation
 - **Test Isolation**: Each test now runs in its own isolated environment to prevent interference
 - **Mock Data**: Tests use consistent mock kernel packages and catalogs for reliable testing
 - **Error Handling Tests**: Added tests for both success and failure scenarios
@@ -28,15 +35,18 @@ All notable changes to the ICRN Kernel Manager project will be documented in thi
   - `test_update_r_libs.sh`: 6 tests covering R library management
   - `test_config.sh`: 10 tests covering configuration validation
   - `test_help.sh`: 3 tests covering help and basic commands
+  - `test_kernel_indexer.sh`: 20 tests covering kernel indexing and collation
 - **Test Environment**: Isolated environments created in `./tests/test_env/`
 - **Mock Data**: Sample R and Python kernels with proper catalog structure
+- **Mock Commands**: Tests include mock conda, Rscript, and python commands for isolated testing
 - **Error Messages**: Standardized error message format with "ERROR:" prefix
 
 ### Documentation
-- **Contributing Guide**: Added comprehensive testing section with examples
-- **Maintainer Guide**: Added testing recommendations for new kernels
+- **Contributing Guide**: Added comprehensive testing section with examples, including kernel_indexer test suite
+- **Maintainer Guide**: Added kernel indexing documentation for R and Python kernels
+- **Reference Documentation**: Added complete kernel_indexer command reference
 - **Troubleshooting**: Updated with improved error handling information
-- **README**: Added testing section with command examples
+- **README**: Added testing section with command examples, including kernel_indexer tests
 
 ## [Previous Releases]
 

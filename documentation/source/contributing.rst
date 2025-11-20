@@ -37,6 +37,7 @@ The project includes a comprehensive test suite to ensure code quality and relia
 - `jq` - JSON processor for test data validation
 - `tar` - For testing kernel packaging functionality
 - `timeout` - For testing command timeouts (usually available on Linux systems)
+- `conda` - Required by `kernel_indexer` (mocked in tests)
 
 **Running Tests:**
 
@@ -50,6 +51,7 @@ The project includes a comprehensive test suite to ensure code quality and relia
    ./tests/run_tests.sh update_r_libs    # R library management
    ./tests/run_tests.sh config           # Configuration validation
    ./tests/run_tests.sh help             # Help and basic commands
+   ./tests/run_tests.sh kernel_indexer   # Kernel indexing and collation
 
 **Test Structure:**
 - **Test Isolation**: Each test runs in its own isolated environment to prevent interference
@@ -83,6 +85,15 @@ The project includes a comprehensive test suite to ensure code quality and relia
    - Help command functionality
    - Invalid command handling
    - Usage information display
+
+5. **Kernel Indexer** (`test_kernel_indexer.sh`)
+   - Command validation and argument parsing
+   - Kernel discovery and filtering
+   - R and Python kernel indexing
+   - Package extraction from conda and R
+   - Manifest generation and validation
+   - Kernel-centric and package-centric collation
+   - Error handling and edge cases
 
 **Test Environment:**
 - Tests create isolated environments in `./tests/test_env/`
