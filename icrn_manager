@@ -350,6 +350,16 @@ function kernels__use() # use a kernel which is already checked out
         
         case $language in
             "R")
+                if [ -z "$overlay_path" ] || [ "$overlay_path" = "null" ]; then
+                    echo "ERROR: Overlay path missing from user catalog for $language $targetname $version."
+                    echo "Run 'icrn_manager kernels get $language $targetname $version' to re-register the overlay."
+                    exit 1
+                fi
+                if [ ! -d "$overlay_path" ]; then
+                    echo "ERROR: Overlay path recorded in user catalog does not exist: $overlay_path"
+                    echo "Consider cleaning and re-checking out this kernel."
+                    exit 1
+                fi
                 target_kernel_link_path=${ICRN_USER_KERNEL_BASE}/${targetname}
                 if [ -e "$target_kernel_link_path" ]; then
                     echo "Found existing link; removing..."
@@ -669,7 +679,11 @@ function kernels__get_in_place() # prep for 'use' without relocating kernel
                     echo "registering R library"
                     register_r_library_in_user_catalog "$target_location" "$language" "$targetname" "$version"
                     echo "registering user overlay"
-                    register_user_overlay_in_user_catalog "$language" "$targetname" "$version"
+                    if ! register_user_overlay_in_user_catalog "$language" "$targetname" "$version"; then
+                        echo "ERROR: Failed to register user overlay for $language $targetname $version"
+                        echo "Please ensure ${ICRN_USER_KERNEL_BASE} is writable and retry the checkout."
+                        exit 1
+                    fi
                     ;;
                 "Python")
                     register_python_library_in_user_catalog "$target_location" "$language" "$targetname" "$version"
