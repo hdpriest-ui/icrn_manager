@@ -48,9 +48,21 @@ fi
 
 
 
+# Prompt the user for confirmation before proceeding with a potentially destructive operation.
+#
+# Parameters:
+#   $1 - challenge: Optional prompt string to display to the user. If not provided,
+#        defaults to "Are you sure? [y/N]"
+#
+# Returns:
+#   0 if user confirms (y/yes), exits with status 0 if user declines
+#
+# Side effects:
+#   Exits the script with status 0 if user does not confirm
 confirm() {
     local challenge=$1; shift
     # call with a prompt string or use a default
+    # function much less needed after we have stopped unpacking kernels to the users local dir; retaining in case its needed
     # https://stackoverflow.com/questions/3231804/in-bash-how-to-add-are-you-sure-y-n-to-any-command-or-alias
     read -r -p "${challenge:-Are you sure? [y/N]} " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
@@ -63,6 +75,25 @@ confirm() {
 }
 
 last_check=-1
+# Check if a kernel entry exists in the specified catalog.
+#
+# This function searches for a kernel entry in a catalog (either central or user catalog)
+# and sets the global variable 'last_check' to indicate success (1) or failure (0).
+#
+# Parameters:
+#   $1 - catalog: Path to the JSON catalog file to search
+#   $2 - language: Language of the kernel (e.g., "R", "Python")
+#   $3 - targetname: Name of the kernel to search for
+#   $4 - targetversion: Optional version number to check for
+#
+# Global variables:
+#   last_check: Set to 1 if entry found, 0 if not found. Initialized to -1.
+#
+# Returns:
+#   No return value. Results are stored in the global 'last_check' variable.
+#
+# Side effects:
+#   Prints error messages to stdout if kernel or version is not found
 check_for_catalog_entry() 
 {
     local catalog=$1; shift
@@ -93,6 +124,21 @@ check_for_catalog_entry()
     fi
 }
 
+# Retrieve and display all available versions for a specific kernel package.
+#
+# This function first verifies that the kernel exists in the catalog, then extracts
+# and displays all available version numbers for that kernel.
+#
+# Parameters:
+#   $1 - catalog: Path to the JSON catalog file to search
+#   $2 - language: Language of the kernel (e.g., "R", "Python")
+#   $3 - targetname: Name of the kernel to get versions for
+#
+# Returns:
+#   Exits with status 1 if the kernel is not found in the catalog
+#
+# Side effects:
+#   Prints available versions to stdout, or error message if kernel not found
 get_versions_for_package() 
 {
     local catalog=$1; shift
@@ -112,6 +158,19 @@ get_versions_for_package()
     echo $available_versions
 }
 
+# Display a list of all available kernels from the central repository catalog.
+#
+# This function reads the central kernel catalog and displays all available kernels
+# in a tabular format showing language, kernel name, and version for each entry.
+#
+# Parameters:
+#   None
+#
+# Returns:
+#   No return value
+#
+# Side effects:
+#   Prints a tab-separated table of available kernels to stdout
 function kernels__available() # get a list of available kernels from the central repo
 {
     icrn_catalog=${ICRN_KERNEL_CATALOG}
@@ -128,11 +187,33 @@ function kernels__available() # get a list of available kernels from the central
         done
     done
 }
+# Alias for kernels__available() - display a list of all available kernels.
+#
+# This is a convenience function that calls kernels__available() with all passed arguments.
+#
+# Parameters:
+#   All arguments are passed through to kernels__available()
+#
+# Returns:
+#   Same as kernels__available()
 function kernels__avail() # alias for available
 {
     kernels__available "$@"
 }
 
+# Display a list of kernels that have been checked out and are ready for use.
+#
+# This function reads the user's local catalog and displays all kernels that have
+# been successfully checked out, showing language, kernel name, and version.
+#
+# Parameters:
+#   None
+#
+# Returns:
+#   No return value
+#
+# Side effects:
+#   Prints a tab-separated table of checked-out kernels to stdout
 function kernels__list() # get the list of kernels already checked out and ready for use
 {
     user_catalog=${ICRN_USER_CATALOG}
@@ -150,6 +231,25 @@ function kernels__list() # get the list of kernels already checked out and ready
     done
 }
 
+# Activate a kernel that has already been checked out for use in Jupyter.
+#
+# This function activates a previously checked-out kernel, making it available for use
+# in Jupyter notebooks. For R kernels, it creates symbolic links and updates .Renviron.
+# For Python kernels, it installs the kernel spec using ipykernel.
+# The special value "none" can be used to deactivate all kernels for a language.
+#
+# Parameters:
+#   $1 - language: Language of the kernel (e.g., "R", "Python")
+#   $2 - targetname: Name of the kernel to activate, or "none" to deactivate all
+#   $3 - version: Version number of the kernel (required unless targetname is "none")
+#
+# Returns:
+#   Exits with status 1 if parameters are missing or invalid, or if kernel path not found
+#
+# Side effects:
+#   - For R: Creates symbolic link and updates .Renviron via update_r_libs.sh
+#   - For Python: Installs/uninstalls Jupyter kernel specs
+#   - Removes existing kernel installations before installing new ones
 function kernels__use() # use a kernel which is already checked out
 {
     local language=$1; shift
@@ -310,11 +410,36 @@ function kernels__use() # use a kernel which is already checked out
     fi
 }
 
+# Alias for kernels__use() - activate a kernel that has already been checked out.
+#
+# This is a convenience function that calls kernels__use() with all passed arguments.
+#
+# Parameters:
+#   All arguments are passed through to kernels__use()
+#
+# Returns:
+#   Same as kernels__use()
 function kernels__activate() # alias for use
 {
     "kernels__use" "$@"
 }
 
+# Register the overlay directory path for a kernel in the user's catalog.
+#
+# This function updates the user catalog with the overlay path for a specific kernel.
+# The overlay directory is used for storing user-specific customizations and additional
+# packages that should be loaded alongside the kernel.
+#
+# Parameters:
+#   $1 - language: Language of the kernel (e.g., "R", "Python")
+#   $2 - targetname: Name of the kernel
+#   $3 - version: Version number of the kernel
+#
+# Returns:
+#   0 if overlay path was successfully registered, 1 if overlay directory not found
+#
+# Side effects:
+#   Updates the user catalog JSON file with the overlay_path field
 function register_user_overlay_in_user_catalog() # add the overlay location to the users catalog
 {
     local language=$1; shift
@@ -340,6 +465,24 @@ function register_user_overlay_in_user_catalog() # add the overlay location to t
     fi
 }
 
+# Identify and register the R library location for an R kernel in the user catalog.
+#
+# This function determines the main library path of an R kernel installation by
+# executing Rscript to query the library paths. It then updates the user catalog
+# with the absolute path to the R library directory.
+#
+# Parameters:
+#   $1 - target_unpacked: Path to the unpacked R kernel conda environment
+#   $2 - language: Language of the kernel (should be "R")
+#   $3 - targetname: Name of the kernel
+#   $4 - version: Version number of the kernel
+#
+# Returns:
+#   0 if R library path was successfully registered, 1 if conda environment not found
+#
+# Side effects:
+#   - Executes Rscript to determine library paths
+#   - Updates the user catalog JSON file with the absolute_path field
 function register_r_library_in_user_catalog() # without unpacking, identify R kernel library location
 {
     local target_unpacked=$1; shift
@@ -374,6 +517,23 @@ function register_r_library_in_user_catalog() # without unpacking, identify R ke
     fi
 }
 
+# Register the Python kernel environment path in the user catalog.
+#
+# This function updates the user catalog with the absolute path to a Python kernel's
+# conda environment. The environment must have a bin/activate script to be recognized
+# as a valid conda environment.
+#
+# Parameters:
+#   $1 - target_unpacked: Path to the unpacked Python kernel conda environment
+#   $2 - language: Language of the kernel (should be "Python")
+#   $3 - targetname: Name of the kernel
+#   $4 - version: Version number of the kernel
+#
+# Returns:
+#   0 if Python environment path was successfully registered, 1 if activation script not found
+#
+# Side effects:
+#   Updates the user catalog JSON file with the absolute_path field
 function register_python_library_in_user_catalog() # unpack and configure a Python kernel environment
 {
     local target_unpacked=$1; shift
@@ -398,11 +558,44 @@ function register_python_library_in_user_catalog() # unpack and configure a Pyth
     fi
 }
 
+# Alias for kernels__get_in_place() - check out a kernel from the central repository.
+#
+# This is a convenience function that calls kernels__get_in_place() with all passed arguments.
+#
+# Parameters:
+#   All arguments are passed through to kernels__get_in_place()
+#
+# Returns:
+#   Same as kernels__get_in_place()
 function kernels__get() # alias for get in place
 {
     "kernels__get_in_place" "$@"
 }
 
+# Check out a kernel from the central repository without relocating it.
+#
+# This function retrieves a kernel from the central repository and registers it in the
+# user catalog. The kernel remains in its original location in the central repository.
+# For R kernels, it also creates an overlay directory for user-specific packages.
+# The function validates input parameters to prevent path traversal and wildcard attacks.
+#
+# Parameters:
+#   $1 - language: Language of the kernel (e.g., "R", "Python")
+#   $2 - targetname: Name of the kernel to check out
+#   $3 - version: Version number of the kernel
+#
+# Returns:
+#   Exits with status 1 if:
+#     - Parameters are missing or invalid
+#     - Invalid characters detected in kernel name or version (security check)
+#     - Kernel not found in central catalog
+#     - Target environment location not found
+#     - Security violation detected (path would escape intended directory)
+#
+# Side effects:
+#   - Creates overlay directory for R kernels
+#   - Updates user catalog with kernel paths
+#   - Validates input to prevent security vulnerabilities
 function kernels__get_in_place() # prep for 'use' without relocating kernel
 {
     local language=$1; shift
@@ -447,19 +640,7 @@ function kernels__get_in_place() # prep for 'use' without relocating kernel
         # language, targetname, and version also specify the info for the overlay directory creation
         # we need to get the R-path needed and register it in the user's config
         # we need to get the users overlay library, and register it in the user's config
-        # for R, we will call:
-        # register_r_library_in_user_catalog
-        #   local target_unpacked=$1; shift
-        #   local language=$1; shift
-        #   local targetname=$1; shift
-        #   local version=$1; shift
-        # this calls: 
-        # source $target_unpacked"bin/activate"
-        # and
-        # source $target_unpacked"bin/activate"
-        # so, $target_unpacked should be the path to the location of the conda prefix which created this
-        # ex: /sw/icrn/jupyter/icrn_ncsa_resources/Kernels/R/pecan/1.9
-
+    
         if [ -e $target_location ]; then
             # identify overlay library location, make it if it doesn't exist
             # what to do if it DOES exist? - nothing, i think.
@@ -510,6 +691,23 @@ function kernels__get_in_place() # prep for 'use' without relocating kernel
     fi
 }
 
+# Update a user's copy of a kernel from the central repository.
+#
+# This function is currently not implemented. It is intended to update an existing
+# checked-out kernel to a newer version or refresh it from the central repository.
+#
+# unclear this will be required under new approach of non-relocation of central kernels
+# perhaps re-point to newer version of central kernel, and update R-packages?
+# low on to-do list
+#
+# Parameters:
+#   (To be determined when implemented)
+#
+# Returns:
+#   Currently exits with status 1 (not implemented)
+#
+# Side effects:
+#   None (function not yet implemented)
 function kernels__update() # update users copy of a kernel from central repo
 {
     echo "entered 'update' subcommand"
@@ -517,6 +715,27 @@ function kernels__update() # update users copy of a kernel from central repo
     exit 1    
 }
 
+# Remove a kernel entry from the user's catalog.
+#
+# This function removes a kernel entry from the user catalog. If a version is specified,
+# only that version is removed. If no version is specified, all versions of the kernel
+# are removed. If removing a version leaves no versions for a kernel, the entire
+# kernel entry is removed from the catalog.
+#
+# Parameters:
+#   $1 - language: Language of the kernel (e.g., "R", "Python")
+#   $2 - targetname: Name of the kernel to remove
+#   $3 - version: Optional version number. If omitted, all versions are removed
+#
+# Returns:
+#   Exits with status 1 if:
+#     - Required parameters are missing
+#     - Kernel not found in user catalog
+#     - Specified version not found in user catalog
+#
+# Side effects:
+#   - Updates the user catalog JSON file by removing the specified entry
+#   - Removes empty kernel entries if all versions are removed
 function kernels__clean() # remove a kernel entry from the users catalog
 {
     local language=$1; shift
@@ -576,6 +795,29 @@ function kernels__clean() # remove a kernel entry from the users catalog
     fi
 }
 
+# Initialize the ICRN Manager by creating necessary directories and configuration files.
+#
+# This function sets up the initial environment for ICRN Manager, creating:
+# - User base directory (~/.icrn/)
+# - Kernel base directory (~/.icrn/icrn_kernels/)
+# - Language-specific subdirectories (r/, python/)
+# - User catalog JSON file
+# - Manager configuration JSON file
+#
+# It also validates that the central repository and its components exist.
+#
+# Parameters:
+#   $1 - central_repository: Optional path to the central kernel repository.
+#        If not provided, uses the default path (/sw/icrn/jupyter/icrn_ncsa_resources/Kernels)
+#
+# Returns:
+#   No return value
+#
+# Side effects:
+#   - Creates directory structure in user's home directory
+#   - Creates and populates configuration files
+#   - Updates existing configuration if central_repository is provided
+#   - Prints warnings if central repository components are not found
 function kernels__init() # create base resources
 {
     echo "Initializing icrn kernel resources..."
@@ -684,6 +926,24 @@ function kernels__init() # create base resources
     echo ""
 }
 
+# Main launcher function for kernel management subcommands.
+#
+# This function routes kernel-related subcommands to their respective handler functions.
+# It provides a unified interface for all kernel operations and includes confirmation
+# prompts for destructive operations like 'clean'.
+#
+# Parameters:
+#   $1 - cmdname: Subcommand name (e.g., "init", "list", "available", "get", "use", "clean")
+#   $@ - Additional arguments passed to the subcommand handler
+#
+# Returns:
+#   Exits with status 1 if:
+#     - No subcommand is specified
+#     - Invalid subcommand name is provided
+#
+# Side effects:
+#   - Prompts for confirmation before executing 'clean' subcommand
+#   - Calls the appropriate subcommand handler function
 function kernels() # launcher
 {
     local cmdname=$1; shift
@@ -709,6 +969,19 @@ function kernels() # launcher
 
 }
 
+# Display usage information and available commands for ICRN Manager.
+#
+# This function prints a help message showing the correct usage syntax and
+# available subcommands for the icrn_manager tool.
+#
+# Parameters:
+#   None
+#
+# Returns:
+#   No return value
+#
+# Side effects:
+#   Prints help text to stdout
 function help() # Show a list of functions
 {
     # grep "^function" $0
