@@ -1,0 +1,896 @@
+#!/bin/bash
+
+# R Kernel Indexer
+# This script inventories R kernels and generates package manifests
+
+# Check for required tools
+if [ -z $(type -p jq) ]; then
+    echo "ERROR: Need tool jq installed to proceed." >&2
+    exit 1
+fi
+
+if [ -z $(type -p conda) ]; then
+    echo "ERROR: Need tool conda installed to proceed." >&2
+    exit 1
+fi
+
+# Default configuration paths
+icrn_base=".icrn"
+ICRN_USER_BASE=${ICRN_USER_BASE:-${HOME}/${icrn_base}}
+ICRN_MANAGER_CONFIG=${ICRN_MANAGER_CONFIG:-${ICRN_USER_BASE}/manager_config.json}
+
+# Try to read kernel root from config, with fallback
+if [ -e "${ICRN_MANAGER_CONFIG}" ]; then
+    ICRN_KERNEL_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}" 2>/dev/null)
+    if [ -n "$ICRN_KERNEL_REPOSITORY" ] && [ "$ICRN_KERNEL_REPOSITORY" != "null" ]; then
+        DEFAULT_KERNEL_ROOT="${ICRN_KERNEL_REPOSITORY}"
+    fi
+fi
+
+# Global variables
+KERNEL_ROOT=""
+OUTPUT_PATH=""
+KERNEL_NAME=""
+KERNEL_VERSION=""
+LANGUAGE_FILTER=""
+
+# Display usage information
+function help() {
+    echo ""
+    echo "usage: $0 <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  index                  Index R kernels and generate manifest files"
+    echo "  collate                Run both collate-by-kernels and collate-by-packages"
+    echo "  collate-by-kernels     Collate all manifest files into a kernel-centric index"
+    echo "  collate-by-packages    Collate all manifest files into a package-centric index"
+    echo ""
+    echo "Index options:"
+    echo "  --kernel-root PATH    Path to kernel repository root (default: from config or required)"
+    echo "                        Should contain language subdirectories (R/, Python/, etc.)"
+    echo "  --language LANG       Filter by specific language (R, Python, etc.). If omitted, processes all languages"
+    echo "  --kernel-name NAME    Index only a specific kernel (optional)"
+    echo "  --kernel-version VER  Index only a specific version (requires --kernel-name)"
+    echo ""
+    echo "Collate options:"
+    echo "  --kernel-root PATH    Path to kernel repository root (default: from config or required)"
+    echo "                        Should contain language subdirectories (R/, Python/, etc.)"
+    echo "  --language LANG       Filter by specific language (R, Python, etc.). If omitted, processes all languages"
+    echo "  --output-dir DIR      Directory for output files (default: {kernel-root})"
+    echo "                        Outputs: {output-dir}/collated_manifests.json and {output-dir}/package_index.json"
+    echo ""
+    echo "Collate-by-kernels options:"
+    echo "  --kernel-root PATH    Path to kernel repository root (default: from config or required)"
+    echo "                        Should contain language subdirectories (R/, Python/, etc.)"
+    echo "  --language LANG       Filter by specific language (R, Python, etc.). If omitted, processes all languages"
+    echo "  --output PATH         Path for collated manifest (default: {kernel-root}/collated_manifests.json)"
+    echo ""
+    echo "Collate-by-packages options:"
+    echo "  --kernel-root PATH    Path to kernel repository root (default: from config or required)"
+    echo "                        Should contain language subdirectories (R/, Python/, etc.)"
+    echo "  --language LANG       Filter by specific language (R, Python, etc.). If omitted, processes all languages"
+    echo "  --output PATH         Path for package-centric manifest (default: {kernel-root}/package_index.json)"
+    echo ""
+    echo "Examples:"
+    echo "  $0 index --kernel-root /path/to/repo/R"
+    echo "  $0 index --kernel-root /path/to/repo/R --kernel-name cowsay"
+    echo "  $0 index --kernel-root /path/to/repo/R --kernel-name cowsay --kernel-version 1.0"
+    echo "  $0 collate --kernel-root /path/to/repo --output-dir /path/to/output"
+    echo "  $0 collate --kernel-root /path/to/repo --language R"
+    echo "  $0 collate-by-kernels --kernel-root /path/to/repo --language Python --output /path/to/collated.json"
+    echo "  $0 collate-by-packages --kernel-root /path/to/repo --output /path/to/package_index.json"
+    echo ""
+}
+
+# Get ISO 8601 timestamp
+function get_timestamp() {
+    date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%S+00:00"
+}
+
+# Discover all kernels in the kernel root directory, optionally filtered by language
+# Parameters:
+#   $1 - kernel_root: Root directory containing language subdirectories (e.g., R/, Python/)
+#   $2 - language_filter: Optional language to filter by (e.g., "R", "Python"). If empty, discovers all languages
+# Returns: List of kernel tuples (language, name, version, path) via stdout
+function discover_kernels() {
+    local kernel_root=$1
+    local language_filter=$2
+    
+    if [ ! -d "$kernel_root" ]; then
+        echo "WARNING: Kernel root directory does not exist: $kernel_root" >&2
+        return 1
+    fi
+    
+    # Determine which language directories to search
+    local language_dirs
+    if [ -n "$language_filter" ]; then
+        # Filter by specific language
+        language_dirs="$kernel_root/$language_filter"
+        if [ ! -d "$language_dirs" ]; then
+            echo "WARNING: Language directory does not exist: $language_dirs" >&2
+            return 1
+        fi
+    else
+        # Discover all language directories
+        language_dirs="$kernel_root/*"
+    fi
+    
+    # Find all directories that match [language]/[kernel_name]/[kernel_version]/ structure
+    # and contain conda-meta directory
+    for lang_dir in $language_dirs; do
+        if [ ! -d "$lang_dir" ]; then
+            continue
+        fi
+        
+        local language=$(basename "$lang_dir")
+        
+        # Find kernel version directories
+        find "$lang_dir" -mindepth 2 -maxdepth 2 -type d | while read -r version_dir; do
+            kernel_name=$(basename "$(dirname "$version_dir")")
+            kernel_version=$(basename "$version_dir")
+            
+            # Check if this is a valid conda environment
+            if [ -d "$version_dir/conda-meta" ]; then
+                echo "$language|$kernel_name|$kernel_version|$version_dir"
+            fi
+        done
+    done
+}
+
+# Extract R version from kernel environment
+function get_r_version() {
+    local kernel_path=$1
+    local rscript_path="$kernel_path/bin/Rscript"
+    
+    if [ ! -x "$rscript_path" ]; then
+        echo "" >&2
+        return 1
+    fi
+    
+    # Get R version using Rscript
+    local r_version=$(R_LIBS='' R_HOME='' R_LIBS_USER='' R_LIBS_SITE='' "$rscript_path" --vanilla -e 'cat(R.version$major, ".", R.version$minor, sep="")' 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$r_version" ]; then
+        echo "$r_version"
+    else
+        echo "" >&2
+        return 1
+    fi
+}
+
+# Extract Python version from kernel environment
+function get_python_version() {
+    local kernel_path=$1
+    local python_path="$kernel_path/bin/python"
+    
+    if [ ! -x "$python_path" ]; then
+        echo "" >&2
+        return 1
+    fi
+    
+    # Get Python version
+    local py_version=$("$python_path" --version 2>&1 | sed 's/Python //' | cut -d. -f1,2)
+    if [ $? -eq 0 ] && [ -n "$py_version" ]; then
+        echo "$py_version"
+    else
+        echo "" >&2
+        return 1
+    fi
+}
+
+
+# Extract packages from conda list
+function extract_conda_packages() {
+    local kernel_path=$1
+    local conda_list_output
+    
+    # Activate conda environment and get package list
+    # Use conda run to execute in the environment without activating
+    conda_list_output=$(conda run -p "$kernel_path" conda list --json 2>/dev/null)
+    
+    if [ $? -ne 0 ] || [ -z "$conda_list_output" ]; then
+        echo "WARNING: Failed to get conda package list for $kernel_path" >&2
+        echo "[]"
+        return 1
+    fi
+    
+    # Parse conda JSON output and extract package name and version
+    echo "$conda_list_output" | jq -r '.[] | select(.name != null) | {name: .name, version: .version, source: "conda"}' | jq -s '.'
+}
+
+# Extract packages from R's installed.packages()
+function extract_r_packages() {
+    local kernel_path=$1
+    local rscript_path="$kernel_path/bin/Rscript"
+    
+    if [ ! -x "$rscript_path" ]; then
+        echo "ERROR: Rscript not found at $rscript_path" >&2
+        echo "[]"
+        return 1
+    fi
+    
+    # Get installed packages using Rscript
+    # Use --vanilla to avoid loading user configs
+    # Extract Package, Version columns (columns 1 and 3)
+    # Output one package per line in format: package_name|package_version
+    local r_output=$(R_LIBS='' R_HOME='' R_LIBS_USER='' R_LIBS_SITE='' "$rscript_path" --vanilla -e 'pkgs <- installed.packages()[,c(1,3),drop=FALSE]; writeLines(paste(rownames(pkgs), pkgs[,2], sep="|"))' 2>/dev/null)
+    
+    if [ $? -ne 0 ] || [ -z "$r_output" ]; then
+        echo "ERROR: Failed to get R package list" >&2
+        echo "[]"
+        return 1
+    fi
+    
+    # Convert pipe-delimited output to JSON using jq for proper escaping
+    # Use a temporary file to build JSON array (avoids subshell issues)
+    local temp_file=$(mktemp)
+    echo "$r_output" | while IFS='|' read -r pkg_name pkg_version; do
+        if [ -n "$pkg_name" ] && [ -n "$pkg_version" ]; then
+            jq -n --arg name "$pkg_name" --arg version "$pkg_version" '{name: $name, version: $version, source: "r"}' >> "$temp_file"
+        fi
+    done
+    jq -s '.' "$temp_file"
+    local result=$?
+    rm -f "$temp_file"
+    return $result
+}
+
+# Merge package lists, with R packages taking precedence
+function merge_package_lists() {
+    local conda_packages=$1
+    local r_packages=$2
+    
+    # Create a temporary file approach or use jq to merge
+    # Strategy: Start with R packages, add conda packages not in R list
+    echo "$conda_packages" | jq --argjson r_pkgs "$r_packages" '
+        . as $conda |
+        ($r_pkgs | map(.name)) as $r_names |
+        ($conda | map(select(.name as $name | ($r_names | index($name) | not)))) as $conda_only |
+        $r_pkgs + $conda_only
+    '
+}
+
+# Detect language of a kernel by checking available binaries
+function detect_kernel_language() {
+    local kernel_path=$1
+    
+    if [ -x "$kernel_path/bin/Rscript" ] && [ -x "$kernel_path/bin/R" ]; then
+        echo "R"
+        return 0
+    elif [ -x "$kernel_path/bin/python" ] || [ -x "$kernel_path/bin/python3" ]; then
+        echo "Python"
+        return 0
+    else
+        # Default to R for backward compatibility, or could return "Unknown"
+        echo "R"
+        return 1
+    fi
+}
+
+# Index a single kernel (supports R, Python, and other languages)
+function index_kernel() {
+    local kernel_path=$1
+    local kernel_name=$2
+    local kernel_version=$3
+    local language=$4  # Optional: if provided, use it; otherwise detect
+    
+    echo "Indexing kernel: $kernel_name version $kernel_version"
+    echo "  Path: $kernel_path"
+    
+    # Validate conda environment
+    if [ ! -d "$kernel_path/conda-meta" ]; then
+        echo "ERROR: Not a valid conda environment (missing conda-meta/): $kernel_path" >&2
+        return 1
+    fi
+    
+    # Detect language if not provided
+    if [ -z "$language" ]; then
+        language=$(detect_kernel_language "$kernel_path")
+    fi
+    
+    echo "  Language: $language"
+    
+    local lang_version="unknown"
+    local all_packages="[]"
+    
+    # Extract packages based on language
+    case "$language" in
+        R)
+            # Validate R and Rscript binaries
+            if [ ! -x "$kernel_path/bin/Rscript" ] || [ ! -x "$kernel_path/bin/R" ]; then
+                echo "ERROR: R/Rscript not found" >&2
+                return 1
+            fi
+            
+            # Get R version
+            lang_version=$(get_r_version "$kernel_path")
+            if [ -z "$lang_version" ]; then
+                echo "WARNING: Could not determine R version, continuing anyway" >&2
+                lang_version="unknown"
+            fi
+            
+            # Extract packages
+            echo "  Extracting conda packages..."
+            local conda_packages=$(extract_conda_packages "$kernel_path")
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to extract conda packages" >&2
+                return 1
+            fi
+            
+            echo "  Extracting R packages..."
+            local r_packages=$(extract_r_packages "$kernel_path")
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to extract R packages" >&2
+                return 1
+            fi
+            
+            # Merge package lists
+            echo "  Merging package lists..."
+            all_packages=$(merge_package_lists "$conda_packages" "$r_packages")
+            ;;
+            
+        Python)
+            # Validate Python binary
+            local python_path="$kernel_path/bin/python"
+            if [ ! -x "$python_path" ] && [ ! -x "$kernel_path/bin/python3" ]; then
+                echo "ERROR: Python not found" >&2
+                return 1
+            fi
+            
+            # Get Python version
+            lang_version=$(get_python_version "$kernel_path")
+            if [ -z "$lang_version" ]; then
+                echo "WARNING: Could not determine Python version, continuing anyway" >&2
+                lang_version="unknown"
+            fi
+            
+            # Extract packages - conda tracks all packages including pip-installed ones
+            echo "  Extracting conda packages..."
+            all_packages=$(extract_conda_packages "$kernel_path")
+            if [ $? -ne 0 ]; then
+                echo "ERROR: Failed to extract conda packages" >&2
+                return 1
+            fi
+            
+            # Update source field to "python" for Python kernels
+            all_packages=$(echo "$all_packages" | jq 'map(.source = "python")')
+            ;;
+            
+        *)
+            # Unknown languages are not supported
+            echo "ERROR: Unsupported language '$language'" >&2
+            echo "Supported languages: R, Python" >&2
+            return 1
+            ;;
+    esac
+    
+    # Get package count
+    local package_count=$(echo "$all_packages" | jq 'length')
+    echo "  Found $package_count packages"
+    
+    # Generate manifest
+    local manifest_file="$kernel_path/package_manifest.json"
+    local indexed_date=$(get_timestamp)
+    
+    # Create manifest JSON
+    local manifest=$(jq -n \
+        --arg name "$kernel_name" \
+        --arg version "$kernel_version" \
+        --arg lang "$language" \
+        --arg lang_ver "$lang_version" \
+        --arg date "$indexed_date" \
+        --argjson packages "$all_packages" \
+        '{
+            kernel_name: $name,
+            kernel_version: $version,
+            language: $lang,
+            language_version: $lang_ver,
+            indexed_date: $date,
+            packages: $packages
+        }')
+    
+    # Write manifest file
+    echo "$manifest" | jq '.' > "$manifest_file"
+    if [ $? -eq 0 ]; then
+        echo "  Created manifest: $manifest_file"
+        return 0
+    else
+        echo "ERROR: Failed to write manifest file: $manifest_file" >&2
+        return 1
+    fi
+}
+
+# Index all kernels (supports all languages)
+function index_all_kernels() {
+    local kernel_root=$1
+    local filter_name=$2
+    local filter_version=$3
+    local language_filter=$4
+    
+    if [ -n "$language_filter" ]; then
+        echo "Discovering kernels in: $kernel_root (language: $language_filter)"
+    else
+        echo "Discovering kernels in: $kernel_root (all languages)"
+    fi
+    
+    local kernels=$(discover_kernels "$kernel_root" "$language_filter")
+    if [ $? -ne 0 ] || [ -z "$kernels" ]; then
+        echo "No kernels found or error discovering kernels" >&2
+        return 1
+    fi
+    
+    local total=0
+    local success=0
+    local failed=0
+    
+    # Use process substitution to avoid subshell issues
+    while IFS='|' read -r language kernel_name kernel_version kernel_path; do
+        # Apply filters if specified
+        if [ -n "$filter_name" ] && [ "$kernel_name" != "$filter_name" ]; then
+            continue
+        fi
+        
+        if [ -n "$filter_version" ] && [ "$kernel_version" != "$filter_version" ]; then
+            continue
+        fi
+        
+        total=$((total + 1))
+        
+        if index_kernel "$kernel_path" "$kernel_name" "$kernel_version" "$language"; then
+            success=$((success + 1))
+        else
+            failed=$((failed + 1))
+            echo "Failed to index: $language $kernel_name $kernel_version" >&2
+        fi
+        echo ""
+    done < <(echo "$kernels")
+    
+    echo "Indexing complete: $success succeeded, $failed failed out of $total total"
+    if [ $failed -gt 0 ]; then
+        return 1
+    fi
+    return 0
+}
+
+# Collate all manifest files
+function collate_manifests() {
+    local kernel_root=$1
+    local output_path=$2
+    local language_filter=$3
+    
+    if [ -n "$language_filter" ]; then
+        echo "Collating manifests from: $kernel_root (language: $language_filter)"
+    else
+        echo "Collating manifests from: $kernel_root (all languages)"
+    fi
+    
+    local kernels=$(discover_kernels "$kernel_root" "$language_filter")
+    if [ $? -ne 0 ] || [ -z "$kernels" ]; then
+        echo "No kernels found or error discovering kernels" >&2
+        return 1
+    fi
+    
+    local collated_date=$(get_timestamp)
+    local kernel_root_abs=$(cd "$kernel_root" 2>/dev/null && pwd || echo "$kernel_root")
+    
+    # Use temporary file to collect kernel JSON objects (avoids command-line length limits)
+    local temp_kernels_file=$(mktemp)
+    local total_kernels=0
+    local skipped=0
+    
+    while IFS='|' read -r language kernel_name kernel_version kernel_path; do
+        local manifest_file="$kernel_path/package_manifest.json"
+        
+        if [ ! -f "$manifest_file" ]; then
+            echo "WARNING: Manifest not found for $kernel_name $kernel_version, skipping" >&2
+            skipped=$((skipped + 1))
+            continue
+        fi
+        
+        # Read and validate manifest
+        if ! jq '.' "$manifest_file" >/dev/null 2>&1; then
+            echo "ERROR: Invalid manifest file: $manifest_file" >&2
+            skipped=$((skipped + 1))
+            continue
+        fi
+        
+        # Calculate relative path from kernel root
+        local kernel_path_abs=$(cd "$kernel_path" 2>/dev/null && pwd || echo "$kernel_path")
+        local rel_path
+        if command -v realpath >/dev/null 2>&1; then
+            rel_path=$(realpath --relative-to="$kernel_root_abs" "$kernel_path_abs" 2>/dev/null || echo "$language/$kernel_name/$kernel_version")
+        else
+            # Fallback: construct relative path manually
+            rel_path="$language/$kernel_name/$kernel_version"
+        fi
+        
+        # Get package count and add enhanced manifest to temp file
+        local package_count=$(jq '.packages | length' "$manifest_file")
+        
+        # Add enhanced manifest to temp file (one JSON object per line)
+        jq --arg rel_path "$rel_path/package_manifest.json" \
+           --argjson count "$package_count" \
+           '. + {
+               manifest_path: $rel_path,
+               package_count: $count
+           }' "$manifest_file" >> "$temp_kernels_file"
+        
+        total_kernels=$((total_kernels + 1))
+        echo "  Added: $kernel_name $kernel_version ($package_count packages)"
+    done < <(echo "$kernels")
+    
+    # Create final collated manifest by reading all kernels from temp file
+    local collated=$(jq -n \
+        --arg date "$collated_date" \
+        --argjson total "$total_kernels" \
+        --slurpfile kernels "$temp_kernels_file" \
+        '{
+            indexed_date: $date,
+            total_kernels: $total,
+            kernels: $kernels
+        }')
+    
+    # Clean up temp file
+    rm -f "$temp_kernels_file"
+    
+    # Write output
+    echo "$collated" | jq '.' > "$output_path"
+    if [ $? -eq 0 ]; then
+        echo ""
+        echo "Collated manifest written to: $output_path"
+        echo "Total kernels: $total_kernels"
+        if [ $skipped -gt 0 ]; then
+            echo "Skipped: $skipped"
+        fi
+        return 0
+    else
+        echo "ERROR: Failed to write collated manifest: $output_path" >&2
+        return 1
+    fi
+}
+
+# Collate manifests into a package-centric index
+# Each package entry lists all kernels that contain it
+function collate_package_centric() {
+    local kernel_root=$1
+    local output_path=$2
+    local language_filter=$3
+    
+    if [ -n "$language_filter" ]; then
+        echo "Collating manifests into package-centric index from: $kernel_root (language: $language_filter)"
+    else
+        echo "Collating manifests into package-centric index from: $kernel_root (all languages)"
+    fi
+    
+    local kernels=$(discover_kernels "$kernel_root" "$language_filter")
+    if [ $? -ne 0 ] || [ -z "$kernels" ]; then
+        echo "No kernels found or error discovering kernels" >&2
+        return 1
+    fi
+    
+    local collated_date=$(get_timestamp)
+    
+    # Use a temporary file to collect package-kernel mappings
+    # Format: package_name|package_version|source|kernel_name|kernel_version|language
+    local temp_mappings_file=$(mktemp)
+    local total_kernels=0
+    local skipped=0
+    
+    while IFS='|' read -r language kernel_name kernel_version kernel_path; do
+        local manifest_file="$kernel_path/package_manifest.json"
+        
+        if [ ! -f "$manifest_file" ]; then
+            echo "WARNING: Manifest not found for $kernel_name $kernel_version, skipping" >&2
+            skipped=$((skipped + 1))
+            continue
+        fi
+        
+        # Read and validate manifest
+        if ! jq '.' "$manifest_file" >/dev/null 2>&1; then
+            echo "ERROR: Invalid manifest file: $manifest_file" >&2
+            skipped=$((skipped + 1))
+            continue
+        fi
+        
+        # Get language from manifest
+        local kernel_language=$(jq -r '.language // "R"' "$manifest_file")
+        
+        # Extract each package with kernel information (including language)
+        jq -r --arg kname "$kernel_name" --arg kver "$kernel_version" --arg lang "$kernel_language" \
+           '.packages[] | "\(.name)|\(.version)|\(.source)|\($kname)|\($kver)|\($lang)"' \
+           "$manifest_file" >> "$temp_mappings_file"
+        
+        total_kernels=$((total_kernels + 1))
+        local package_count=$(jq '.packages | length' "$manifest_file")
+        echo "  Processed: $kernel_name $kernel_version ($package_count packages)"
+    done < <(echo "$kernels")
+    
+    # Now build package-centric index using jq
+    # Group by package name, then collect all kernel occurrences
+    local temp_packages_file=$(mktemp)
+    
+    # Use jq to read pipe-delimited file and group by package name
+    jq -R -s '
+        split("\n") |
+        map(select(length > 0)) |
+        map(split("|")) |
+        group_by(.[0]) |
+        map({
+            name: .[0][0],
+            kernel_count: (map({
+                kernel_name: .[3],
+                kernel_version: .[4],
+                package_version: .[1],
+                source: .[2],
+                kernel_language: .[5]
+            }) | length),
+            kernels: map({
+                kernel_name: .[3],
+                kernel_version: .[4],
+                package_version: .[1],
+                source: .[2],
+                kernel_language: .[5]
+            })
+        })
+    ' "$temp_mappings_file" > "$temp_packages_file"
+    
+    # Create final package-centric manifest
+    local total_packages=$(jq 'length' "$temp_packages_file")
+    local collated=$(jq -n \
+        --arg date "$collated_date" \
+        --argjson total "$total_packages" \
+        --slurpfile packages "$temp_packages_file" \
+        '{
+            indexed_date: $date,
+            total_packages: $total,
+            packages: $packages[0]
+        }')
+    
+    # Clean up temp files
+    rm -f "$temp_mappings_file" "$temp_packages_file"
+    
+    # Write output
+    echo "$collated" | jq '.' > "$output_path"
+    if [ $? -eq 0 ]; then
+        echo ""
+        echo "Package-centric index written to: $output_path"
+        echo "Total packages: $total_packages"
+        echo "Total kernels processed: $total_kernels"
+        if [ $skipped -gt 0 ]; then
+            echo "Skipped: $skipped"
+        fi
+        return 0
+    else
+        echo "ERROR: Failed to write package-centric index: $output_path" >&2
+        return 1
+    fi
+}
+
+# Parse command line arguments
+function parse_args() {
+    local cmd=$1
+    shift
+    
+    case "$cmd" in
+        index)
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --kernel-root)
+                        KERNEL_ROOT="$2"
+                        shift 2
+                        ;;
+                    --kernel-name)
+                        KERNEL_NAME="$2"
+                        shift 2
+                        ;;
+                    --kernel-version)
+                        KERNEL_VERSION="$2"
+                        shift 2
+                        ;;
+                    --language)
+                        LANGUAGE_FILTER="$2"
+                        shift 2
+                        ;;
+                    *)
+                        echo "ERROR: Unknown option: $1" >&2
+                        help
+                        exit 1
+                        ;;
+                esac
+            done
+            
+            # Validate kernel-version requires kernel-name
+            if [ -n "$KERNEL_VERSION" ] && [ -z "$KERNEL_NAME" ]; then
+                echo "ERROR: --kernel-version requires --kernel-name" >&2
+                exit 1
+            fi
+            
+            # Set default kernel root if not provided
+            if [ -z "$KERNEL_ROOT" ]; then
+                if [ -n "$DEFAULT_KERNEL_ROOT" ]; then
+                    KERNEL_ROOT="$DEFAULT_KERNEL_ROOT"
+                else
+                    echo "ERROR: --kernel-root is required" >&2
+                    help
+                    exit 1
+                fi
+            fi
+            ;;
+            
+        collate)
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --kernel-root)
+                        KERNEL_ROOT="$2"
+                        shift 2
+                        ;;
+                    --language)
+                        LANGUAGE_FILTER="$2"
+                        shift 2
+                        ;;
+                    --output-dir)
+                        OUTPUT_PATH="$2"
+                        shift 2
+                        ;;
+                    *)
+                        echo "ERROR: Unknown option: $1" >&2
+                        help
+                        exit 1
+                        ;;
+                esac
+            done
+            
+            # Set default kernel root if not provided
+            if [ -z "$KERNEL_ROOT" ]; then
+                if [ -n "$DEFAULT_KERNEL_ROOT" ]; then
+                    KERNEL_ROOT="$DEFAULT_KERNEL_ROOT"
+                else
+                    echo "ERROR: --kernel-root is required" >&2
+                    help
+                    exit 1
+                fi
+            fi
+            ;;
+            
+        collate-by-kernels)
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --kernel-root)
+                        KERNEL_ROOT="$2"
+                        shift 2
+                        ;;
+                    --language)
+                        LANGUAGE_FILTER="$2"
+                        shift 2
+                        ;;
+                    --output)
+                        OUTPUT_PATH="$2"
+                        shift 2
+                        ;;
+                    *)
+                        echo "ERROR: Unknown option: $1" >&2
+                        help
+                        exit 1
+                        ;;
+                esac
+            done
+            
+            # Set default kernel root if not provided
+            if [ -z "$KERNEL_ROOT" ]; then
+                if [ -n "$DEFAULT_KERNEL_ROOT" ]; then
+                    KERNEL_ROOT="$DEFAULT_KERNEL_ROOT"
+                else
+                    echo "ERROR: --kernel-root is required" >&2
+                    help
+                    exit 1
+                fi
+            fi
+            
+            # Set default output path if not provided
+            if [ -z "$OUTPUT_PATH" ]; then
+                OUTPUT_PATH="$KERNEL_ROOT/collated_manifests.json"
+            fi
+            ;;
+            
+        collate-by-packages)
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --kernel-root)
+                        KERNEL_ROOT="$2"
+                        shift 2
+                        ;;
+                    --language)
+                        LANGUAGE_FILTER="$2"
+                        shift 2
+                        ;;
+                    --output)
+                        OUTPUT_PATH="$2"
+                        shift 2
+                        ;;
+                    *)
+                        echo "ERROR: Unknown option: $1" >&2
+                        help
+                        exit 1
+                        ;;
+                esac
+            done
+            
+            # Set default kernel root if not provided
+            if [ -z "$KERNEL_ROOT" ]; then
+                if [ -n "$DEFAULT_KERNEL_ROOT" ]; then
+                    KERNEL_ROOT="$DEFAULT_KERNEL_ROOT"
+                else
+                    echo "ERROR: --kernel-root is required" >&2
+                    help
+                    exit 1
+                fi
+            fi
+            
+            # Set default output path if not provided
+            if [ -z "$OUTPUT_PATH" ]; then
+                OUTPUT_PATH="$KERNEL_ROOT/package_index.json"
+            fi
+            ;;
+            
+        *)
+            echo "ERROR: Unknown command: $cmd" >&2
+            help
+            exit 1
+            ;;
+    esac
+}
+
+# Main entry point
+function main() {
+    local cmd=$1
+    shift
+    
+    if [ -z "$cmd" ]; then
+        help
+        exit 1
+    fi
+    
+    parse_args "$cmd" "$@"
+    
+    case "$cmd" in
+        index)
+            index_all_kernels "$KERNEL_ROOT" "$KERNEL_NAME" "$KERNEL_VERSION" "$LANGUAGE_FILTER"
+            ;;
+        collate)
+            # Run both collation methods
+            # Set default output directory if not provided
+            local output_dir="$OUTPUT_PATH"
+            if [ -z "$output_dir" ]; then
+                output_dir="$KERNEL_ROOT"
+            fi
+            
+            echo "Running collate-by-kernels..."
+            collate_manifests "$KERNEL_ROOT" "$output_dir/collated_manifests.json" "$LANGUAGE_FILTER"
+            local result1=$?
+            echo ""
+            echo "Running collate-by-packages..."
+            collate_package_centric "$KERNEL_ROOT" "$output_dir/package_index.json" "$LANGUAGE_FILTER"
+            local result2=$?
+            
+            if [ $result1 -eq 0 ] && [ $result2 -eq 0 ]; then
+                return 0
+            else
+                return 1
+            fi
+            ;;
+        collate-by-kernels)
+            collate_manifests "$KERNEL_ROOT" "$OUTPUT_PATH" "$LANGUAGE_FILTER"
+            ;;
+        collate-by-packages)
+            collate_package_centric "$KERNEL_ROOT" "$OUTPUT_PATH" "$LANGUAGE_FILTER"
+            ;;
+        *)
+            echo "ERROR: Unknown command: $cmd" >&2
+            help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"
+
