@@ -1,4 +1,4 @@
-name: Build and Push Kernel Indexer Docker Image
+name: Kernel Indexer Build and Push
 
 on:
   push:

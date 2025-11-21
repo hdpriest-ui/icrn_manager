@@ -1,4 +1,4 @@
-name: Build and Push Web Server Docker Image
+name: Kernel Webserver Build and Push
 
 on:
   push:
