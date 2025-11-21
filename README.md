@@ -127,8 +127,63 @@ Note that the user doesn't have to download, install, or compile any R packages 
 
 ### Stop using package sets
 ```sh
-./icrn_manager kernels use none
+./icrn_manager kernels use R none
 ```
+
+## Web Interface
+
+The ICRN Kernel Manager includes a web-based interface for browsing available kernels and searching for packages. The web interface provides an intuitive way to explore the kernel catalog without using the command line.
+
+### Starting the Web Interface with Docker
+
+The web interface runs in a Docker container. To start it:
+
+1. **Build the Docker image:**
+   ```sh
+   docker build -t icrn-web ./web
+   ```
+
+2. **Run the container:**
+   ```sh
+   docker run -d -p 8080:80 --name icrn-web icrn-web
+   ```
+
+   This starts the container in detached mode, mapping port 8080 on your host to port 80 in the container.
+
+3. **Copy example data into the container (optional):**
+   
+   If you have example data files (`collated_manifests.json` and `package_index.json`), you can copy them into the running container:
+   ```sh
+   docker cp web/examples/collated_manifests.json icrn-web:/app/data/
+   docker cp web/examples/package_index.json icrn-web:/app/data/
+   ```
+   
+   The web service will automatically detect and load these files.
+
+4. **Access the web interface:**
+   
+   Open your web browser and navigate to:
+   ```
+   http://localhost:8080
+   ```
+
+### Web Interface Features
+
+The web interface provides two main views:
+
+- **View Kernels**: Browse available kernels organized by language, view kernel details, and see packages included in each kernel. You can filter and sort packages, and copy commands to get or use specific kernels.
+
+- **View Packages**: Search for packages by name to see which kernels contain them. Results show the language, kernel name, kernel version, and package version for each match.
+
+### Managing the Docker Container
+
+- **Rebuild after making changes:**
+  ```sh
+  docker stop icrn-web
+  docker rm icrn-web
+  docker build -t icrn-web ./web
+  docker run -d -p 8080:80 --name icrn-web icrn-web
+  ```
 
 ## Implementation Details
 
@@ -144,7 +199,6 @@ The project includes a comprehensive test suite to ensure reliability and code q
 ./tests/run_tests.sh update_r_libs    # R library management  
 ./tests/run_tests.sh config           # Configuration validation
 ./tests/run_tests.sh help             # Help and basic commands
-./tests/run_tests.sh kernel_indexer   # Kernel indexing and collation
 ```
 
 **Test Features:**
@@ -160,10 +214,3 @@ The project includes a comprehensive test suite to ensure reliability and code q
 - Better permission checking and validation
 
 For detailed testing information, see the [Contributing Guide](documentation/source/contributing.rst).
-
-### TODO
-- save all config paths into the configure json, so they can be commonly shared across shell scripts
-- add in a admin-configure readme, for setting up the central repo structure
-    - better yet, add in a shell script that does this
-- add in a 'kernels' subcommand for ipykernel support methods
-- add in a {HOME}/.icrn_trash location to move old packages
