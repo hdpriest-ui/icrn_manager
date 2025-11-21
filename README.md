@@ -1,9 +1,29 @@
-# Welcome to the ICRN Kernel Manager
+# ICRN Kernel Manager
 
 ## What is the ICRN Kernel Manager?
 The Illinois Computes Research Notebook (ICRN) enables students and researchers to access computing at scale via an easily accessible web interface. But, many scientific domains rely on a wide array of complex packages for R and Python which are not easy to install. It is common for new users of compute systems to spend hours attempting to configure their environments.
 
-The ICRN Kernel Manager aims to eliminate this barrier.
+The ICRN Kernel Manager aims to eliminate this barrier by providing a simple command-line interface and web-based catalog for managing pre-configured kernel environments.
+
+## Architecture Overview
+
+The ICRN Kernel Manager consists of three main components:
+
+1. **Command-Line Interface (`icrn_manager`)**: The primary tool for users to discover, download, and activate kernel environments
+2. **Kernel Indexer**: A containerized service that indexes kernel repositories and generates JSON manifest files containing package information
+3. **Web Interface**: A FastAPI + Nginx web server that provides a browser-based interface for exploring available kernels and searching for packages
+
+### Component Integration
+
+```
+Kernel Repository
+    ↓ (read-write mount)
+Kernel Indexer (CronJob) → Generates collated_manifests.json & package_index.json
+    ↓ (JSON files)
+Web Server (reads JSON files) → Serves via REST API
+    ↓
+CLI Tool & Web UI → Users discover and manage kernels
+```
 
 <img src="documentation/demo_resources/icrn_libraries_mngr_use_case_cowsay.gif" align="center" width="600"/>
 
@@ -44,43 +64,6 @@ Alias:
 ./icrn_manager kernels avail
 ```
 
-### Get a package set
-```sh
-./icrn_manager kernels get <language> <kernel> <version>
-```
-Example:
-```sh
-./icrn_manager kernels get R cowsay 1.0
-./icrn_manager kernels get Python numpy 1.24.0
-```
-This command obtains the correct environment from the central repository, unpacks it, identifies the location of the packages, and updates the user's catalogue with this information.
-
-```sh
-./icrn_manager kernels get R cowsay 1.0
-Desired kernel:
-Language: R
-Kernel: cowsay
-Version: 1.0
-
-ICRN Catalog:
-/u/hdpriest/icrn_temp_repository/icrn_kernel_catalog.json
-User Catalog:
-/u/hdpriest/.icrn/icrn_kernels/user_catalog.json
-
-Making target directory: /u/hdpriest/.icrn/icrn_kernels/cowsay-1.0/
-Checking out kernel...
-checking for: /u/hdpriest/.icrn/icrn_kernels/cowsay-1.0//bin/activate
-activating environment
-doing unpack
-getting R path.
-determined: /u/hdpriest/.icrn/icrn_kernels/cowsay-1.0/lib/R/library
-deactivating
-Updating user's catalog with R cowsay and 1.0
-Done.
-
-Be sure to call "./icrn_manager kernels use R cowsay 1.0" to begin using this kernel in R.
-```
-
 ### Use a package set
 ```sh
 ./icrn_manager kernels use <language> <kernel> <version>
@@ -90,35 +73,6 @@ Example:
 ./icrn_manager kernels use R cowsay 1.0
 ./icrn_manager kernels use Python numpy 1.24.0
 ```
-<img src="documentation/demo_resources/icrn_libraries_mngr_simple_use_cowsay.gif" align="center" width="600"/>
-
-```sh
-./icrn_manager kernels use R cowsay 1.0
-Desired kernel:
-Language: R
-Kernel: cowsay
-Version: 1.0
-checking for: /u/hdpriest/.icrn/icrn_kernels/r/cowsay-1.0/lib/R/library
-Found existing link; removing...
-
-./icrn_manager kernels use Python numpy 1.24.0
-Desired kernel:
-Language: Python
-Kernel: numpy
-Version: 1.24.0
-Found. Activating Python kernel...
-Installing Python kernel: numpy-1.24.0
-Python kernel installation complete.
-Kernel 'numpy-1.24.0' is now available in Jupyter.
-/u/hdpriest/.icrn/icrn_kernels/cowsay
-Found. Linking and Activating...
-Using /u/hdpriest/.icrn_b/icrn_kernels/cowsay within R...
-Done.
-
-```
-This command updates the user's ```~{HOME}/.Renviron``` file with the location of the indicated kernel. Only one package-set can be 'in-use' at any time. Package-sets can be switched without 'get'ing them again.
-
-Note that the user doesn't have to download, install, or compile any R packages at all. 
 
 ### Switch to a different set of packages
 ```sh
@@ -130,37 +84,72 @@ Note that the user doesn't have to download, install, or compile any R packages 
 ./icrn_manager kernels use R none
 ```
 
+## Kernel Indexer
+
+The kernel indexer is a containerized service that indexes kernel repositories and generates JSON manifest files. It scans kernel directories, extracts package information, and creates two key files:
+
+- `collated_manifests.json`: A kernel-centric index listing all available kernels with their packages
+- `package_index.json`: A package-centric index showing which kernels contain each package
+
+### Building the Kernel Indexer
+
+```bash
+docker build -t icrn-kernel-indexer:latest -f kernel-indexer/Dockerfile .
+```
+
+### Running the Kernel Indexer
+
+The indexer requires read-write access to the kernel repository:
+
+```bash
+docker run --rm \
+  -v /path/to/kernel/repository:/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
+  -e KERNEL_ROOT=/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
+  icrn-kernel-indexer:latest
+```
+
+### Kubernetes Deployment
+
+The kernel indexer is designed to run as a Kubernetes CronJob. See [`kernel-indexer/README.md`](kernel-indexer/README.md) for detailed deployment instructions.
+
+For more information, see the [Kernel Indexer documentation](kernel-indexer/README.md) and [design document](kernel-indexer/DESIGN.md).
+
 ## Web Interface
 
-The ICRN Kernel Manager includes a web-based interface for browsing available kernels and searching for packages. The web interface provides an intuitive way to explore the kernel catalog without using the command line.
+The ICRN Kernel Manager includes a web-based interface for browsing available kernels and searching for packages. The web interface reads the JSON files generated by the kernel indexer and provides an intuitive way to explore the kernel catalog without using the command line.
+
+### Prerequisites
+
+The web interface requires the JSON files generated by the kernel indexer:
+- `collated_manifests.json`
+- `package_index.json`
+
+These files should be located in the data directory or mounted as volumes.
 
 ### Starting the Web Interface with Docker
 
-The web interface runs in a Docker container. To start it:
-
 1. **Build the Docker image:**
    ```sh
-   docker build -t icrn-web ./web
+   docker build -t icrn-kernel-webserver:latest -f web/Dockerfile .
    ```
 
-2. **Run the container:**
+2. **Run the container with kernel data:**
    ```sh
-   docker run -d -p 8080:80 --name icrn-web icrn-web
+   docker run -d -p 8080:80 \
+     -v /path/to/kernel/repository:/app/data:ro \
+     -e COLLATED_MANIFESTS_PATH=/app/data/collated_manifests.json \
+     -e PACKAGE_INDEX_PATH=/app/data/package_index.json \
+     --name icrn-web icrn-kernel-webserver:latest
    ```
 
-   This starts the container in detached mode, mapping port 8080 on your host to port 80 in the container.
-
-3. **Copy example data into the container (optional):**
-   
-   If you have example data files (`collated_manifests.json` and `package_index.json`), you can copy them into the running container:
+   Or with example data:
    ```sh
+   docker run -d -p 8080:80 --name icrn-web icrn-kernel-webserver:latest
    docker cp web/examples/collated_manifests.json icrn-web:/app/data/
    docker cp web/examples/package_index.json icrn-web:/app/data/
    ```
-   
-   The web service will automatically detect and load these files.
 
-4. **Access the web interface:**
+3. **Access the web interface:**
    
    Open your web browser and navigate to:
    ```
@@ -175,19 +164,53 @@ The web interface provides two main views:
 
 - **View Packages**: Search for packages by name to see which kernels contain them. Results show the language, kernel name, kernel version, and package version for each match.
 
-### Managing the Docker Container
+### API Endpoints
 
-- **Rebuild after making changes:**
-  ```sh
-  docker stop icrn-web
-  docker rm icrn-web
-  docker build -t icrn-web ./web
-  docker run -d -p 8080:80 --name icrn-web icrn-web
-  ```
+The web interface exposes a REST API:
 
-## Implementation Details
+- `GET /`: API information and status
+- `GET /health`: Health check endpoint
+- `GET /api/languages`: Get list of available languages
+- `GET /api/kernels/{language}`: Get all kernels for a specific language
+- `GET /api/kernel/{language}/{kernel_name}/{version}`: Get specific kernel details
+- `GET /api/manifest/{language}/{kernel_name}/{version}`: Get package manifest for a kernel
+- `GET /api/package/{package_name}`: Get all kernels containing a package
+- `GET /api/packages/search`: Search for packages by name
+- `POST /api/refresh`: Manually trigger data refresh (reloads JSON files from disk)
 
-### Testing
+For more information, see the [Web Interface documentation](web/README.md).
+
+## Containerized Deployment
+
+The ICRN Kernel Manager components are containerized for easy deployment:
+
+### Available Container Images
+
+1. **Kernel Indexer**: `icrn-kernel-indexer`
+   - Automatically builds and pushes to Docker Hub on commits to `main`/`develop` branches
+   - Designed for Kubernetes CronJob deployment
+   - See [kernel-indexer/README.md](kernel-indexer/README.md) for details
+
+2. **Web Server**: `icrn-kernel-webserver`
+   - Automatically builds and pushes to Docker Hub on commits to `main`/`develop` branches
+   - FastAPI backend with Nginx reverse proxy
+   - See [web/README.md](web/README.md) for details
+
+3. **Apptainer/Singularity Support**: The kernel indexer also supports Apptainer/Singularity containers
+   - See [kernel-indexer/APPTAINER_EXAMPLE.md](kernel-indexer/APPTAINER_EXAMPLE.md) for usage
+
+### Continuous Integration
+
+GitHub Actions workflows automatically build and push Docker images:
+
+- `docker-build-indexer.yml`: Builds and pushes kernel indexer container
+- `docker-build-webserver.yml`: Builds and pushes web server container
+- `docker-build.yml`: Builds the main CLI tool container
+
+All workflows trigger on pushes and pull requests to `main` and `develop` branches.
+
+## Testing
+
 The project includes a comprehensive test suite to ensure reliability and code quality:
 
 ```sh
@@ -199,6 +222,7 @@ The project includes a comprehensive test suite to ensure reliability and code q
 ./tests/run_tests.sh update_r_libs    # R library management  
 ./tests/run_tests.sh config           # Configuration validation
 ./tests/run_tests.sh help             # Help and basic commands
+./tests/run_tests.sh kernel_indexer   # Kernel indexing and collation
 ```
 
 **Test Features:**
@@ -212,5 +236,14 @@ The project includes a comprehensive test suite to ensure reliability and code q
 - File path validation to prevent silent failures
 - Improved test isolation for more reliable testing
 - Better permission checking and validation
+- Added kernel indexer test suite with 20+ tests
 
 For detailed testing information, see the [Contributing Guide](documentation/source/contributing.rst).
+
+## Documentation
+
+- [User Guide](documentation/source/user/usage.rst): Detailed usage instructions
+- [Contributing Guide](documentation/source/contributing.rst): Guidelines for contributors
+- [Kernel Indexer](kernel-indexer/README.md): Kernel indexing service documentation
+- [Web Interface](web/README.md): Web server documentation
+- [CHANGELOG](CHANGELOG.md): Project changelog
