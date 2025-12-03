@@ -8,6 +8,7 @@ EXIT_MISSING_DEPS=2
 EXIT_KERNEL_ROOT_INVALID=3
 EXIT_INDEX_FAILED=4
 EXIT_COLLATE_FAILED=5
+EXIT_CATALOG_UPDATE_FAILED=6
 
 # Default configuration
 DEFAULT_KERNEL_ROOT="/sw/icrn/jupyter/icrn_ncsa_resources/Kernels"
@@ -151,6 +152,174 @@ validate_collated_file() {
     return 0
 }
 
+# Normalize language name to match catalog conventions (capitalize first letter)
+normalize_language() {
+    local lang="$1"
+    if [ -z "$lang" ]; then
+        echo ""
+        return
+    fi
+    # Capitalize first letter, lowercase the rest
+    local first_char=$(echo "${lang:0:1}" | tr '[:lower:]' '[:upper:]')
+    local rest_chars=$(echo "${lang:1}" | tr '[:upper:]' '[:lower:]')
+    echo "${first_char}${rest_chars}"
+}
+
+# Update icrn_kernel_catalog.json with discovered kernels
+update_kernel_catalog() {
+    local collated_manifests="$1"
+    local catalog_file="${KERNEL_ROOT}/icrn_kernel_catalog.json"
+    
+    log_info "Starting catalog update phase..."
+    log_info "Reading collated manifests from: ${collated_manifests}"
+    log_info "Catalog file: ${catalog_file}"
+    
+    # Check if collated manifests file exists
+    if [ ! -f "${collated_manifests}" ]; then
+        log_error "Collated manifests file not found: ${collated_manifests}"
+        return 1
+    fi
+    
+    # Validate collated manifests JSON
+    if ! jq '.' "${collated_manifests}" >/dev/null 2>&1; then
+        log_error "Invalid JSON in collated manifests: ${collated_manifests}"
+        return 1
+    fi
+    
+    # Load existing catalog or create empty structure
+    local existing_catalog
+    if [ -f "${catalog_file}" ]; then
+        log_info "Loading existing catalog from: ${catalog_file}"
+        if ! jq '.' "${catalog_file}" >/dev/null 2>&1; then
+            log_error "Invalid JSON in existing catalog: ${catalog_file}"
+            return 1
+        fi
+        existing_catalog=$(cat "${catalog_file}")
+    else
+        log_info "Catalog file does not exist, creating new catalog"
+        existing_catalog="{}"
+    fi
+    
+    # Create temporary file for updated catalog
+    local temp_catalog=$(mktemp)
+    
+    # Process each kernel from collated manifests
+    local kernel_count=0
+    local updated_count=0
+    local added_count=0
+    
+    # Extract kernels array and process each kernel
+    local kernels_json=$(jq -c '.kernels[]?' "${collated_manifests}" 2>/dev/null)
+    
+    if [ -z "$kernels_json" ]; then
+        log_warn "No kernels found in collated manifests"
+        # If no kernels and catalog doesn't exist, create empty catalog
+        if [ ! -f "${catalog_file}" ]; then
+            echo "{}" | jq '.' > "${temp_catalog}"
+            if [ "${ATOMIC_WRITES}" = "true" ]; then
+                mv "${temp_catalog}" "${catalog_file}"
+            else
+                cp "${temp_catalog}" "${catalog_file}"
+                rm -f "${temp_catalog}"
+            fi
+            log_info "Created empty catalog file"
+        fi
+        return 0
+    fi
+    
+    # Start with existing catalog
+    local updated_catalog="$existing_catalog"
+    
+    # Process each kernel
+    while IFS= read -r kernel_json; do
+        [ -z "$kernel_json" ] && continue
+        
+        kernel_count=$((kernel_count + 1))
+        
+        # Extract kernel information
+        local kernel_name=$(echo "$kernel_json" | jq -r '.kernel_name // empty')
+        local kernel_version=$(echo "$kernel_json" | jq -r '.kernel_version // empty')
+        local language=$(echo "$kernel_json" | jq -r '.language // empty')
+        
+        if [ -z "$kernel_name" ] || [ -z "$kernel_version" ] || [ -z "$language" ]; then
+            log_warn "Skipping kernel with missing required fields: ${kernel_json}"
+            continue
+        fi
+        
+        # Normalize language name
+        local normalized_lang=$(normalize_language "$language")
+        
+        # Construct paths
+        local environment_location="${KERNEL_ROOT}/${normalized_lang}/${kernel_name}/${kernel_version}"
+        local manifest_path="${KERNEL_ROOT}/${normalized_lang}/${kernel_name}/${kernel_version}/package_manifest.json"
+        
+        log_debug "Processing kernel: ${normalized_lang}/${kernel_name}/${kernel_version}"
+        
+        # Check if kernel entry already exists in catalog
+        if echo "$updated_catalog" | jq -e --arg lang "$normalized_lang" --arg name "$kernel_name" --arg ver "$kernel_version" \
+            '.[$lang][$name][$ver] != null' >/dev/null 2>&1; then
+            # Update existing entry
+            updated_catalog=$(echo "$updated_catalog" | jq --arg lang "$normalized_lang" \
+                --arg name "$kernel_name" \
+                --arg ver "$kernel_version" \
+                --arg env_loc "$environment_location" \
+                --arg manifest "$manifest_path" \
+                '.[$lang][$name][$ver].environment_location = $env_loc | 
+                 .[$lang][$name][$ver].manifest = $manifest')
+            updated_count=$((updated_count + 1))
+            log_debug "Updated existing catalog entry: ${normalized_lang}/${kernel_name}/${kernel_version}"
+        else
+            # Add new entry
+            updated_catalog=$(echo "$updated_catalog" | jq --arg lang "$normalized_lang" \
+                --arg name "$kernel_name" \
+                --arg ver "$kernel_version" \
+                --arg env_loc "$environment_location" \
+                --arg manifest "$manifest_path" \
+                'if .[$lang] == null then .[$lang] = {} else . end |
+                 if .[$lang][$name] == null then .[$lang][$name] = {} else . end |
+                 .[$lang][$name][$ver] = {
+                     environment_location: $env_loc,
+                     manifest: $manifest
+                 }')
+            added_count=$((added_count + 1))
+            log_debug "Added new catalog entry: ${normalized_lang}/${kernel_name}/${kernel_version}"
+        fi
+    done <<< "$kernels_json"
+    
+    # Write updated catalog to temp file
+    echo "$updated_catalog" | jq '.' > "${temp_catalog}"
+    
+    if [ $? -ne 0 ]; then
+        log_error "Failed to write updated catalog to temp file"
+        rm -f "${temp_catalog}"
+        return 1
+    fi
+    
+    # Validate the updated catalog JSON
+    if ! jq '.' "${temp_catalog}" >/dev/null 2>&1; then
+        log_error "Invalid JSON in updated catalog"
+        rm -f "${temp_catalog}"
+        return 1
+    fi
+    
+    # Write catalog file (atomic if enabled)
+    if [ "${ATOMIC_WRITES}" = "true" ]; then
+        mv "${temp_catalog}" "${catalog_file}"
+        log_info "Catalog updated atomically: ${catalog_file}"
+    else
+        cp "${temp_catalog}" "${catalog_file}"
+        rm -f "${temp_catalog}"
+        log_info "Catalog updated: ${catalog_file}"
+    fi
+    
+    log_info "Catalog update completed successfully"
+    log_info "  Processed kernels: ${kernel_count}"
+    log_info "  Updated entries: ${updated_count}"
+    log_info "  Added entries: ${added_count}"
+    
+    return 0
+}
+
 # Main execution
 main() {
     log_info "Starting kernel indexer container"
@@ -221,6 +390,24 @@ main() {
         local exit_code=$?
         log_error "Collation phase failed with exit code: ${exit_code}"
         exit $EXIT_COLLATE_FAILED
+    fi
+    
+    # Execute catalog update phase
+    log_info "Starting catalog update phase..."
+    
+    if update_kernel_catalog "${collated_manifests}"; then
+        log_info "Catalog update phase completed successfully"
+        
+        # Validate updated catalog file
+        local catalog_file="${KERNEL_ROOT}/icrn_kernel_catalog.json"
+        if ! validate_collated_file "${catalog_file}" "kernel catalog"; then
+            log_error "Catalog file validation failed"
+            exit $EXIT_CATALOG_UPDATE_FAILED
+        fi
+    else
+        local exit_code=$?
+        log_error "Catalog update phase failed with exit code: ${exit_code}"
+        exit $EXIT_CATALOG_UPDATE_FAILED
     fi
     
     log_info "Kernel indexing completed successfully"
