@@ -12,9 +12,9 @@ test_kernels_init() {
     # Clean any existing config
     rm -rf "$ICRN_USER_BASE"
     
-    # Run init
+    # Run init with automatic confirmation
     local output
-    output=$("$ICRN_MANAGER" kernels init "$TEST_REPO" 2>&1)
+    output=$(echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" 2>&1)
     
     # Check if init was successful
     if [ -f "$ICRN_USER_BASE/manager_config.json" ] && \
@@ -32,11 +32,11 @@ test_kernels_available() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     local output
-    output=$("$ICRN_MANAGER" kernels available 2>&1)
+    output=$(icrn_manager_with_confirm kernels available 2>&1)
     
     # Check if available shows the expected kernels
     if echo "$output" | grep -q "Language" && \
@@ -56,11 +56,11 @@ test_kernels_list_empty() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     local output
-    output=$("$ICRN_MANAGER" kernels list 2>&1)
+    output=$(icrn_manager_with_confirm kernels list 2>&1)
     
     # Check if list shows empty catalog
     if echo "$output" | grep -q "checked out kernels" && \
@@ -77,14 +77,14 @@ test_kernels_get_python_success() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Add mock conda-unpack to PATH
     export PATH="$TEST_BASE:$PATH"
     
     local output
-    output=$(timeout 30 "$ICRN_MANAGER" kernels get Python numpy 1.24.0 2>&1)
+    output=$(echo "y" | timeout 30 "$ICRN_MANAGER" kernels get Python numpy 1.24.0 2>&1)
     
     # Check if Python kernel registration succeeds (in-place, no unpacking)
     if echo "$output" | grep -q "Updating user's catalog with Python numpy and 1.24.0" && \
@@ -101,11 +101,11 @@ test_kernels_get_r_success() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     local output
-    output=$(timeout 30 "$ICRN_MANAGER" kernels get R cowsay 1.0 2>&1)
+    output=$(echo "y" | timeout 30 "$ICRN_MANAGER" kernels get R cowsay 1.0 2>&1)
     
     # Check if R kernel registration succeeds (in-place, no unpacking)
     if echo "$output" | grep -q "registering R library" && \
@@ -123,11 +123,11 @@ test_kernels_get_invalid_language() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     local output
-    output=$("$ICRN_MANAGER" kernels get Invalid cowsay 1.0 2>&1)
+    output=$(icrn_manager_with_confirm kernels get Invalid cowsay 1.0 2>&1)
     
     # Check if it fails with unsupported language error
     if echo "$output" | grep -q "Unsupported language"; then
@@ -148,11 +148,11 @@ test_kernels_get_missing_params() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     local output
-    output=$("$ICRN_MANAGER" kernels get 2>&1)
+    output=$(icrn_manager_with_confirm kernels get 2>&1)
     
     # Check if it fails with usage message
     if echo "$output" | grep -q "usage: icrn_manager kernels get <language> <kernel name> <version number>"; then
@@ -168,16 +168,16 @@ test_kernels_clean() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Add a test entry to user catalog
     local user_catalog="$ICRN_USER_BASE/icrn_kernels/user_catalog.json"
     jq '.R.test_kernel.test_version = {"absolute_path": "/tmp/test"}' "$user_catalog" > "$user_catalog.tmp" && mv "$user_catalog.tmp" "$user_catalog"
     
-    # Test clean with automatic confirmation
+    # Test clean with automatic confirmation (needs two "y" responses: one for auto-init, one for clean)
     local output
-    output=$(echo "y" | "$ICRN_MANAGER" kernels clean R test_kernel test_version 2>&1)
+    output=$(echo -e "y\ny" | "$ICRN_MANAGER" kernels clean R test_kernel test_version 2>&1)
     
     # Check if clean was successful
     if echo "$output" | grep -q "Desired kernel to scrub from user catalog" && \
@@ -194,11 +194,11 @@ test_kernels_clean_missing_params() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     local output
-    output=$(echo "y" | timeout 5 "$ICRN_MANAGER" kernels clean 2>&1)
+    output=$(echo -e "y\ny" | timeout 5 "$ICRN_MANAGER" kernels clean 2>&1)
     local exit_code=$?
     
     # Check if it fails with usage message or if timeout occurred
@@ -217,11 +217,11 @@ test_kernels_use_missing_params() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     local output
-    output=$("$ICRN_MANAGER" kernels use 2>&1)
+    output=$(icrn_manager_with_confirm kernels use 2>&1)
     
     # Check if it fails with usage message (new format includes "none" option)
     if echo "$output" | grep -q "usage: icrn_manager kernels use <language> <kernel name> \[version number\]" && \
@@ -238,15 +238,15 @@ test_kernels_use_none() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Create a test .Renviron file
     local test_renviron="$TEST_USER_HOME/.Renviron"
     echo "R_LIBS=/usr/lib/R/library" > "$test_renviron"
     
     local output
-    output=$("$ICRN_MANAGER" kernels use R none 2>&1)
+    output=$(icrn_manager_with_confirm kernels use R none 2>&1)
     
     # Check if it handles "none" correctly
     if echo "$output" | grep -q "Desired kernel: none for R" && \
@@ -267,12 +267,12 @@ test_kernels_get_wildcard_attack() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Test wildcard attack in get command
     local output
-    output=$("$ICRN_MANAGER" kernels get R "malicious*" "1.0" 2>&1)
+    output=$(icrn_manager_with_confirm kernels get R "malicious*" "1.0" 2>&1)
     
     # Check if it rejects wildcards
     if echo "$output" | grep -q "Invalid characters in kernel name or version" && \
@@ -289,12 +289,12 @@ test_kernels_get_path_traversal_attack() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Test path traversal attack in get command
     local output
-    output=$("$ICRN_MANAGER" kernels get R "kernel" "../../../etc" 2>&1)
+    output=$(icrn_manager_with_confirm kernels get R "kernel" "../../../etc" 2>&1)
     
     # Check if it rejects path separators
     if echo "$output" | grep -q "Invalid characters in kernel name or version" && \
@@ -311,8 +311,8 @@ test_kernels_use_python_success() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Create a mock Python kernel environment
     local python_kernel_dir="$ICRN_USER_KERNEL_BASE/python/test-python-1.0"
@@ -358,7 +358,7 @@ test_kernels_use_python_success() {
     
     # Test Python kernel use
     local output
-    output=$("$ICRN_MANAGER" kernels use Python test_python 1.0 2>&1)
+    output=$(icrn_manager_with_confirm kernels use Python test_python 1.0 2>&1)
     
     # Check if Python kernel use succeeds
     if echo "$output" | grep -q "Found. Activating Python kernel" && \
@@ -375,8 +375,8 @@ test_kernels_use_python_none() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Add a test Python kernel to user catalog
     local user_catalog="$ICRN_USER_CATALOG"
@@ -395,7 +395,7 @@ test_kernels_use_python_none() {
     
     # Test Python kernel removal with mock jupyter in PATH
     local output
-    output=$(env PATH="$TEST_BASE:$PATH" "$ICRN_MANAGER" kernels use Python none 2>&1)
+    output=$(echo "y" | env PATH="$TEST_BASE:$PATH" "$ICRN_MANAGER" kernels use Python none 2>&1)
     
     # Check if Python kernel removal succeeds and only removes catalog kernels
     # Note: The mock jupyter should return test_kernel-1.0 in the kernelspec list
@@ -415,8 +415,8 @@ test_kernels_use_with_overlay() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Create a mock R kernel with overlay
     local user_catalog="$ICRN_USER_CATALOG"
@@ -444,7 +444,7 @@ test_kernels_use_with_overlay() {
     
     # Test using kernel with overlay
     local output
-    output=$(PATH="$TEST_BASE:$PATH" "$ICRN_MANAGER" kernels use R cowsay 1.0 2>&1)
+    output=$(PATH="$TEST_BASE:$PATH" icrn_manager_with_confirm kernels use R cowsay 1.0 2>&1)
     
     # Check if it uses overlay path
     if echo "$output" | grep -q "Found. Linking and Activating" || \
@@ -461,11 +461,11 @@ test_kernels_get_creates_overlay_directory() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     local output
-    output=$(timeout 30 "$ICRN_MANAGER" kernels get R cowsay 1.0 2>&1)
+    output=$(echo "y" | timeout 30 "$ICRN_MANAGER" kernels get R cowsay 1.0 2>&1)
     
     # Check if overlay directory was created
     local overlay_dir="$ICRN_USER_KERNEL_BASE/r/cowsay-1.0"
@@ -484,12 +484,12 @@ test_kernels_get_security_path_traversal() {
     setup_test_env
     set_test_env
     
-    # Initialize the environment first
-    "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
+    # Initialize the environment first with automatic confirmation
+    echo "y" | "$ICRN_MANAGER" kernels init "$TEST_REPO" >/dev/null 2>&1
     
     # Test path traversal in kernel name
     local output
-    output=$("$ICRN_MANAGER" kernels get R "../../etc" "1.0" 2>&1)
+    output=$(icrn_manager_with_confirm kernels get R "../../etc" "1.0" 2>&1)
     
     # Check if it rejects path separators
     if echo "$output" | grep -q "Invalid characters in kernel name or version"; then
