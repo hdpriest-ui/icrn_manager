@@ -130,7 +130,7 @@ These files should be located in the data directory or mounted as volumes.
 
 1. **Build the Docker image:**
    ```sh
-   docker build -t icrn-kernel-webserver:latest -f web/Dockerfile .
+   docker build -t icrn-kernel-webserver:latest -f web/Dockerfile web/
    ```
 
 2. **Run the container with kernel data:**
