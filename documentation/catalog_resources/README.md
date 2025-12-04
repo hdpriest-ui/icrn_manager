@@ -13,7 +13,7 @@ The central repository should be organized as follows:
 ```
 central_repository/
 ├── icrn_kernel_catalog.json
-├── r_kernels/
+├── R/
 │   ├── cowsay/
 │   │   └── 1.0/
 │   │       └── R_cowsay.conda.pack.tar.gz
@@ -21,7 +21,7 @@ central_repository/
 │   │   └── 1.9/
 │   │       └── PEcAn-base-3.tar.gz
 │   └── ...
-├── python_kernels/
+├── Python/
 │   ├── numpy/
 │   │   └── 1.20/
 │   │       └── python_numpy.conda.pack.tar.gz

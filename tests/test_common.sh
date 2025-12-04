@@ -156,8 +156,8 @@ setup_test_env() {
     mkdir -p "$TEST_USER_HOME"
     
     # Create mock repository structure
-    mkdir -p "$TEST_REPO/r_kernels"
-    mkdir -p "$TEST_REPO/python_kernels"
+    mkdir -p "$TEST_REPO/R"
+    mkdir -p "$TEST_REPO/Python"
     
     # Create mock catalog with paths pointing to test repository
     cat > "$TEST_REPO/icrn_kernel_catalog.json" << EOF
@@ -165,13 +165,13 @@ setup_test_env() {
   "R": {
     "cowsay": {
       "1.0": {
-        "environment_location": "$TEST_REPO/r_kernels/cowsay/1.0",
+        "environment_location": "$TEST_REPO/R/cowsay/1.0",
         "description": "Test R kernel for cowsay package"
       }
     },
     "ggplot2": {
       "3.4.0": {
-        "environment_location": "$TEST_REPO/r_kernels/ggplot2/3.4.0",
+        "environment_location": "$TEST_REPO/R/ggplot2/3.4.0",
         "description": "Test R kernel for ggplot2 package"
       }
     }
@@ -179,7 +179,7 @@ setup_test_env() {
   "Python": {
     "numpy": {
       "1.24.0": {
-        "environment_location": "$TEST_REPO/python_kernels/numpy/1.24.0",
+        "environment_location": "$TEST_REPO/Python/numpy/1.24.0",
         "description": "Test Python kernel for numpy package"
       }
     }
@@ -188,38 +188,38 @@ setup_test_env() {
 EOF
     
     # Create mock kernel environment directories (in-place environments, not tar files)
-    mkdir -p "$TEST_REPO/r_kernels/cowsay/1.0/bin"
-    mkdir -p "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin"
-    mkdir -p "$TEST_REPO/python_kernels/numpy/1.24.0/bin"
+    mkdir -p "$TEST_REPO/R/cowsay/1.0/bin"
+    mkdir -p "$TEST_REPO/R/ggplot2/3.4.0/bin"
+    mkdir -p "$TEST_REPO/Python/numpy/1.24.0/bin"
     
     # Create R kernel mock with conda environment structure
-    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/cowsay/1.0/bin/activate"
-    echo "echo 'Activating R conda environment'" >> "$TEST_REPO/r_kernels/cowsay/1.0/bin/activate"
-    chmod +x "$TEST_REPO/r_kernels/cowsay/1.0/bin/activate"
-    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/cowsay/1.0/bin/deactivate"
-    echo "echo 'Deactivating R conda environment'" >> "$TEST_REPO/r_kernels/cowsay/1.0/bin/deactivate"
-    chmod +x "$TEST_REPO/r_kernels/cowsay/1.0/bin/deactivate"
-    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/cowsay/1.0/bin/Rscript"
-    echo "echo '/mock/r/lib'" >> "$TEST_REPO/r_kernels/cowsay/1.0/bin/Rscript"
-    chmod +x "$TEST_REPO/r_kernels/cowsay/1.0/bin/Rscript"
+    echo "#!/bin/bash" > "$TEST_REPO/R/cowsay/1.0/bin/activate"
+    echo "echo 'Activating R conda environment'" >> "$TEST_REPO/R/cowsay/1.0/bin/activate"
+    chmod +x "$TEST_REPO/R/cowsay/1.0/bin/activate"
+    echo "#!/bin/bash" > "$TEST_REPO/R/cowsay/1.0/bin/deactivate"
+    echo "echo 'Deactivating R conda environment'" >> "$TEST_REPO/R/cowsay/1.0/bin/deactivate"
+    chmod +x "$TEST_REPO/R/cowsay/1.0/bin/deactivate"
+    echo "#!/bin/bash" > "$TEST_REPO/R/cowsay/1.0/bin/Rscript"
+    echo "echo '/mock/r/lib'" >> "$TEST_REPO/R/cowsay/1.0/bin/Rscript"
+    chmod +x "$TEST_REPO/R/cowsay/1.0/bin/Rscript"
     
-    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/activate"
-    echo "echo 'Activating R conda environment'" >> "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/activate"
-    chmod +x "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/activate"
-    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/deactivate"
-    echo "echo 'Deactivating R conda environment'" >> "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/deactivate"
-    chmod +x "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/deactivate"
-    echo "#!/bin/bash" > "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/Rscript"
-    echo "echo '/mock/r/lib'" >> "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/Rscript"
-    chmod +x "$TEST_REPO/r_kernels/ggplot2/3.4.0/bin/Rscript"
+    echo "#!/bin/bash" > "$TEST_REPO/R/ggplot2/3.4.0/bin/activate"
+    echo "echo 'Activating R conda environment'" >> "$TEST_REPO/R/ggplot2/3.4.0/bin/activate"
+    chmod +x "$TEST_REPO/R/ggplot2/3.4.0/bin/activate"
+    echo "#!/bin/bash" > "$TEST_REPO/R/ggplot2/3.4.0/bin/deactivate"
+    echo "echo 'Deactivating R conda environment'" >> "$TEST_REPO/R/ggplot2/3.4.0/bin/deactivate"
+    chmod +x "$TEST_REPO/R/ggplot2/3.4.0/bin/deactivate"
+    echo "#!/bin/bash" > "$TEST_REPO/R/ggplot2/3.4.0/bin/Rscript"
+    echo "echo '/mock/r/lib'" >> "$TEST_REPO/R/ggplot2/3.4.0/bin/Rscript"
+    chmod +x "$TEST_REPO/R/ggplot2/3.4.0/bin/Rscript"
     
     # Create Python kernel mock with conda environment structure
-    echo "#!/bin/bash" > "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
-    echo "echo 'Activating conda environment'" >> "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
-    chmod +x "$TEST_REPO/python_kernels/numpy/1.24.0/bin/activate"
-    echo "#!/bin/bash" > "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
-    echo "echo 'Deactivating conda environment'" >> "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
-    chmod +x "$TEST_REPO/python_kernels/numpy/1.24.0/bin/deactivate"
+    echo "#!/bin/bash" > "$TEST_REPO/Python/numpy/1.24.0/bin/activate"
+    echo "echo 'Activating conda environment'" >> "$TEST_REPO/Python/numpy/1.24.0/bin/activate"
+    chmod +x "$TEST_REPO/Python/numpy/1.24.0/bin/activate"
+    echo "#!/bin/bash" > "$TEST_REPO/Python/numpy/1.24.0/bin/deactivate"
+    echo "echo 'Deactivating conda environment'" >> "$TEST_REPO/Python/numpy/1.24.0/bin/deactivate"
+    chmod +x "$TEST_REPO/Python/numpy/1.24.0/bin/deactivate"
     
     # Create mock conda-unpack command
     echo '#!/bin/bash' > "$TEST_BASE/conda-unpack"
@@ -246,6 +246,13 @@ set_test_env() {
     export ICRN_USER_BASE="$TEST_USER_HOME/.icrn"
     export ICRN_USER_KERNEL_BASE="$TEST_USER_HOME/.icrn/icrn_kernels"
     export ICRN_USER_CATALOG="$TEST_USER_HOME/.icrn/icrn_kernels/user_catalog.json"
+}
+
+# Function to run icrn_manager with automatic confirmation for prompts
+# This handles the case where initialization occurs automatically and prompts for confirmation
+# Usage: icrn_manager_with_confirm <command> [args...]
+icrn_manager_with_confirm() {
+    echo "y" | "$ICRN_MANAGER" "$@"
 }
 
 # Function to print test summary
