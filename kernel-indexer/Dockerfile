@@ -20,7 +20,7 @@ COPY kernel_indexer /usr/local/bin/kernel_indexer
 RUN chmod +x /usr/local/bin/kernel_indexer
 
 # Copy entrypoint script from kernel-indexer directory
-COPY kernel-indexer/entrypoint.sh /app/entrypoint.sh
+COPY entrypoint.sh /app/entrypoint.sh
 
 # Fix line endings and make executable
 RUN sed -i 's/\r$//' /app/entrypoint.sh && \
