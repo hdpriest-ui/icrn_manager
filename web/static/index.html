@@ -386,6 +386,11 @@
         let filteredPackages = [];
         let sortColumn = -1;
         let sortDirection = 1; // 1 for ascending, -1 for descending
+        let packageSearchRows = []; // Store package search results for sorting
+        let packageSearchSortColumn = -1;
+        let packageSearchSortDirection = 1;
+        let packageSearchTotalMatches = 0; // Store total package matches
+        let packageSearchQuery = ''; // Store search query
         const API_BASE = '/api';
 
         // Initialize on page load
@@ -768,64 +773,239 @@
                         <i class="bi bi-info-circle"></i> No packages found matching "${escapeHtml(data.query)}"
                     </div>
                 `;
+                packageSearchRows = [];
+                packageSearchTotalMatches = 0;
+                packageSearchQuery = data.query || '';
+                return;
+            }
+            
+            // Store total matches and query
+            packageSearchTotalMatches = data.total_matches || 0;
+            packageSearchQuery = data.query || '';
+            
+            // Flatten the data: create one row per package-kernel combination
+            packageSearchRows = [];
+            data.packages.forEach(pkg => {
+                if (pkg.kernels && pkg.kernels.length > 0) {
+                    pkg.kernels.forEach(kernel => {
+                        packageSearchRows.push({
+                            packageName: pkg.name,
+                            packageVersion: kernel.package_version || 'N/A',
+                            kernelName: kernel.kernel_name || 'N/A',
+                            kernelVersion: kernel.kernel_version || 'N/A',
+                            language: kernel.kernel_language || kernel.language || 'N/A'
+                        });
+                    });
+                } else {
+                    // If no kernels, still show the package
+                    packageSearchRows.push({
+                        packageName: pkg.name,
+                        packageVersion: 'N/A',
+                        kernelName: 'N/A',
+                        kernelVersion: 'N/A',
+                        language: 'N/A'
+                    });
+                }
+            });
+            
+            // Reset sort state
+            packageSearchSortColumn = -1;
+            packageSearchSortDirection = 1;
+            
+            // Render the table
+            renderPackageSearchTable();
+        }
+
+        // Render package search results table
+        function renderPackageSearchTable() {
+            const resultsDiv = document.getElementById('packageSearchResults');
+            
+            if (packageSearchRows.length === 0) {
+                resultsDiv.innerHTML = '<p class="text-muted text-center">No results to display</p>';
                 return;
             }
             
             let html = `
                 <div class="mb-3">
-                    <strong>Found ${data.total_matches} package(s) matching "${escapeHtml(data.query)}"</strong>
+                    <strong>Found ${packageSearchTotalMatches} package(s) matching "${escapeHtml(packageSearchQuery)}" (${packageSearchRows.length} total result(s))</strong>
                 </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="packageSearchTable">
+                        <thead>
+                            <tr>
+                                <th class="sortable" onclick="sortPackageSearchTable(0)">
+                                    Package Name
+                                    <i class="bi bi-arrow-down-up sort-icon" id="packageSortIcon0"></i>
+                                </th>
+                                <th class="sortable" onclick="sortPackageSearchTable(1)">
+                                    Package Version
+                                    <i class="bi bi-arrow-down-up sort-icon" id="packageSortIcon1"></i>
+                                </th>
+                                <th class="sortable" onclick="sortPackageSearchTable(2)">
+                                    Kernel Name
+                                    <i class="bi bi-arrow-down-up sort-icon" id="packageSortIcon2"></i>
+                                </th>
+                                <th class="sortable" onclick="sortPackageSearchTable(3)">
+                                    Kernel Version
+                                    <i class="bi bi-arrow-down-up sort-icon" id="packageSortIcon3"></i>
+                                </th>
+                                <th class="sortable" onclick="sortPackageSearchTable(4)">
+                                    Language
+                                    <i class="bi bi-arrow-down-up sort-icon" id="packageSortIcon4"></i>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
             `;
             
-            data.packages.forEach(pkg => {
-                html += `
-                    <div class="card mb-3">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">
-                                <i class="bi bi-box-seam"></i> ${escapeHtml(pkg.name)}
-                            </h6>
-                            <span class="badge bg-secondary">${pkg.kernel_count} kernel(s)</span>
-                        </div>
-                        <div class="card-body">
-                            <h6 class="mb-2">Available in the following kernels:</h6>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Language</th>
-                                            <th>Kernel Name</th>
-                                            <th>Version</th>
-                                            <th>Package Version</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                `;
-                
-                if (pkg.kernels && pkg.kernels.length > 0) {
-                    pkg.kernels.forEach(kernel => {
-                        html += `
-                            <tr>
-                                <td><span class="badge bg-info">${escapeHtml(kernel.language || 'N/A')}</span></td>
-                                <td>${escapeHtml(kernel.kernel_name || 'N/A')}</td>
-                                <td><span class="badge bg-secondary">${escapeHtml(kernel.kernel_version || 'N/A')}</span></td>
-                                <td>${escapeHtml(kernel.package_version || 'N/A')}</td>
-                            </tr>
-                        `;
-                    });
+            packageSearchRows.forEach((row, index) => {
+                // Create clickable kernel name link if kernel info is available
+                let kernelNameCell;
+                if (row.kernelName !== 'N/A' && row.kernelVersion !== 'N/A' && row.language !== 'N/A') {
+                    kernelNameCell = `<a href="#" class="kernel-link" data-language="${escapeHtml(row.language)}" data-kernel-name="${escapeHtml(row.kernelName)}" data-kernel-version="${escapeHtml(row.kernelVersion)}" style="color: var(--illinois-blue); text-decoration: none; font-weight: 500; cursor: pointer;">${escapeHtml(row.kernelName)}</a>`;
                 } else {
-                    html += '<tr><td colspan="4" class="text-muted text-center">No kernel information available</td></tr>';
+                    kernelNameCell = escapeHtml(row.kernelName);
                 }
                 
                 html += `
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                    <tr>
+                        <td>${escapeHtml(row.packageName)}</td>
+                        <td>${escapeHtml(row.packageVersion)}</td>
+                        <td>${kernelNameCell}</td>
+                        <td>${escapeHtml(row.kernelVersion)}</td>
+                        <td><span class="badge bg-info">${escapeHtml(row.language)}</span></td>
+                    </tr>
                 `;
             });
             
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
             resultsDiv.innerHTML = html;
+            
+            // Update sort icons
+            for (let i = 0; i < 5; i++) {
+                const icon = document.getElementById(`packageSortIcon${i}`);
+                if (icon) {
+                    if (packageSearchSortColumn === i) {
+                        if (packageSearchSortDirection === 1) {
+                            icon.className = 'bi bi-arrow-down sort-icon active';
+                        } else {
+                            icon.className = 'bi bi-arrow-up sort-icon active';
+                        }
+                    } else {
+                        icon.className = 'bi bi-arrow-down-up sort-icon';
+                    }
+                }
+            }
+            
+            // Attach event listeners to kernel links
+            resultsDiv.querySelectorAll('.kernel-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const language = this.getAttribute('data-language');
+                    const kernelName = this.getAttribute('data-kernel-name');
+                    const kernelVersion = this.getAttribute('data-kernel-version');
+                    navigateToKernel(language, kernelName, kernelVersion);
+                });
+            });
+        }
+
+        // Sort package search table
+        function sortPackageSearchTable(columnIndex) {
+            // Reset all sort icons
+            for (let i = 0; i < 5; i++) {
+                const icon = document.getElementById(`packageSortIcon${i}`);
+                if (icon) {
+                    icon.className = 'bi bi-arrow-down-up sort-icon';
+                }
+            }
+            
+            // If clicking same column, reverse direction
+            if (packageSearchSortColumn === columnIndex) {
+                packageSearchSortDirection *= -1;
+            } else {
+                packageSearchSortColumn = columnIndex;
+                packageSearchSortDirection = 1;
+            }
+            
+            // Update sort icon
+            const icon = document.getElementById(`packageSortIcon${columnIndex}`);
+            if (icon) {
+                if (packageSearchSortDirection === 1) {
+                    icon.className = 'bi bi-arrow-down sort-icon active';
+                } else {
+                    icon.className = 'bi bi-arrow-up sort-icon active';
+                }
+            }
+            
+            // Sort rows
+            packageSearchRows.sort((a, b) => {
+                let aVal, bVal;
+                switch(columnIndex) {
+                    case 0: // Package Name
+                        aVal = a.packageName || '';
+                        bVal = b.packageName || '';
+                        break;
+                    case 1: // Package Version
+                        aVal = a.packageVersion || '';
+                        bVal = b.packageVersion || '';
+                        break;
+                    case 2: // Kernel Name
+                        aVal = a.kernelName || '';
+                        bVal = b.kernelName || '';
+                        break;
+                    case 3: // Kernel Version
+                        aVal = a.kernelVersion || '';
+                        bVal = b.kernelVersion || '';
+                        break;
+                    case 4: // Language
+                        aVal = a.language || '';
+                        bVal = b.language || '';
+                        break;
+                }
+                
+                if (aVal < bVal) return -1 * packageSearchSortDirection;
+                if (aVal > bVal) return 1 * packageSearchSortDirection;
+                return 0;
+            });
+            
+            // Re-render the table
+            renderPackageSearchTable();
+        }
+
+        // Function to navigate to kernel view
+        async function navigateToKernel(language, kernelName, version) {
+            // Switch to kernels view
+            showView('kernels');
+            
+            // Set the language if needed
+            const languageSelect = document.getElementById('languageSelect');
+            if (languageSelect.value !== language) {
+                languageSelect.value = language;
+                currentLanguage = language;
+                // Load kernels for the new language
+                await loadKernels(language);
+            }
+            
+            // Find the kernel item in the list to highlight it
+            const kernelItems = document.querySelectorAll('.kernel-item');
+            let kernelElement = null;
+            
+            kernelItems.forEach(item => {
+                const itemKernelName = item.getAttribute('data-kernel-name');
+                const itemVersion = item.getAttribute('data-version');
+                
+                if (itemKernelName === kernelName && itemVersion === version) {
+                    kernelElement = item;
+                }
+            });
+            
+            // Select the kernel (with or without element for highlighting)
+            await selectKernel(language, kernelName, version, kernelElement);
         }
     </script>
 </body>
