@@ -21,12 +21,8 @@ ICRN_USER_KERNEL_BASE=${ICRN_USER_KERNEL_BASE:-${ICRN_USER_BASE}/${icrn_kernels}
 ICRN_USER_CATALOG=${ICRN_USER_CATALOG:-${ICRN_USER_KERNEL_BASE}/user_catalog.json}
 
 if [ ! -e ${ICRN_MANAGER_CONFIG} ]; then
-    # if manager config json doesn't exist, we need to be in the 'init' call
-    if [ ! "$2" = "init" ]; then
-        echo "You must run 'icrn_manager kernels init' prior to leveraging this tool."
-        exit 1
-    fi
-    # if the config doesn't exist, it will be created and populated during the init call
+    # Note: Auto-initialization will be handled in kernels() function
+    # This section sets up default paths for when config doesn't exist yet
     ICRN_KERNEL_REPOSITORY=$central_catalog_default
     ICRN_R_KERNELS=${ICRN_KERNEL_REPOSITORY}"/r_kernels"
     ICRN_PYTHON_KERNELS=${ICRN_KERNEL_REPOSITORY}"/python_kernels"
@@ -846,6 +842,80 @@ function kernels__init() # create base resources
     echo ""
     echo "central catalog location will be: ${central_repository}"
     echo ""
+    
+    # Determine which paths will be affected
+    ICRN_MANAGER_CONFIG=${ICRN_MANAGER_CONFIG:-${ICRN_USER_BASE}/manager_config.json}
+    
+    echo "The following paths will be created or modified:"
+    echo ""
+    
+    local paths_to_create=()
+    local paths_to_overwrite=()
+    
+    # Check ICRN_USER_BASE
+    if [ ! -e "${ICRN_USER_BASE}/" ]; then
+        paths_to_create+=("${ICRN_USER_BASE}/ (directory)")
+    fi
+    
+    # Check ICRN_USER_KERNEL_BASE
+    if [ ! -e "${ICRN_USER_KERNEL_BASE}" ]; then
+        paths_to_create+=("${ICRN_USER_KERNEL_BASE} (directory)")
+    fi
+    
+    # Check language-specific subdirectories
+    if [ ! -e "${ICRN_USER_KERNEL_BASE}/r" ]; then
+        paths_to_create+=("${ICRN_USER_KERNEL_BASE}/r (directory)")
+    fi
+    
+    if [ ! -e "${ICRN_USER_KERNEL_BASE}/python" ]; then
+        paths_to_create+=("${ICRN_USER_KERNEL_BASE}/python (directory)")
+    fi
+    
+    # Check ICRN_USER_CATALOG
+    if [ ! -e "${ICRN_USER_CATALOG}" ]; then
+        paths_to_create+=("${ICRN_USER_CATALOG} (file)")
+    fi
+    
+    # Check ICRN_MANAGER_CONFIG
+    if [ ! -e "${ICRN_MANAGER_CONFIG}" ]; then
+        paths_to_create+=("${ICRN_MANAGER_CONFIG} (file)")
+    elif [ -n "$overwrite" ]; then
+        paths_to_overwrite+=("${ICRN_MANAGER_CONFIG} (file - will update central catalog path)")
+    fi
+    
+    # Display paths that will be created
+    if [ ${#paths_to_create[@]} -gt 0 ]; then
+        echo "Paths that will be CREATED:"
+        for path in "${paths_to_create[@]}"; do
+            echo "  - $path"
+        done
+        echo ""
+    fi
+    
+    # Display paths that will be overwritten/modified
+    if [ ${#paths_to_overwrite[@]} -gt 0 ]; then
+        echo "Paths that will be MODIFIED:"
+        for path in "${paths_to_overwrite[@]}"; do
+            echo "  - $path"
+        done
+        echo ""
+    fi
+    
+    # If nothing will be created or modified, inform user
+    if [ ${#paths_to_create[@]} -eq 0 ] && [ ${#paths_to_overwrite[@]} -eq 0 ]; then
+        echo "All required paths already exist. No changes will be made."
+        echo ""
+        return 0
+    fi
+    
+    # Ask for confirmation
+    read -r -p "Do you want to proceed with these changes? [y/N] " response
+    if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        echo "Initialization cancelled."
+        exit 0
+    fi
+    echo ""
+    
     # check for existence of 
     #~{HOME}/.icrn/
     #~{HOME}/.icrn/icrn_kernels/
@@ -940,6 +1010,32 @@ function kernels__init() # create base resources
     echo ""
 }
 
+# Check if initialization is needed and perform it automatically if required
+#
+# This function checks if the ICRN Manager has been initialized by verifying
+# the existence of the manager configuration file. If not initialized, it
+# automatically calls kernels__init with the default central repository path.
+#
+# Parameters:
+#   None
+#
+# Returns:
+#   0 if initialization was performed, 1 if already initialized
+#
+# Side effects:
+#   - Calls kernels__init() if configuration is missing
+#   - Creates user directories and configuration files
+function check_and_init_if_needed()
+{
+    if [ ! -e "${ICRN_MANAGER_CONFIG}" ]; then
+        echo "ICRN Manager not initialized. Auto-initializing with default settings..."
+        echo ""
+        kernels__init
+        return 0
+    fi
+    return 1
+}
+
 # Main launcher function for kernel management subcommands.
 #
 # This function routes kernel-related subcommands to their respective handler functions.
@@ -961,6 +1057,19 @@ function kernels__init() # create base resources
 function kernels() # launcher
 {
     local cmdname=$1; shift
+    
+    # Auto-initialize if needed (skip for 'init' command itself)
+    if [ "$cmdname" != "init" ]; then
+        check_and_init_if_needed
+        # After auto-init, reload config variables since they may have changed
+        if [ -e "${ICRN_MANAGER_CONFIG}" ]; then
+            ICRN_KERNEL_REPOSITORY=$(jq -r ".\"icrn_central_catalog_path\"" "${ICRN_MANAGER_CONFIG}")
+            ICRN_R_KERNELS=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_r_kernels\"" "${ICRN_MANAGER_CONFIG}")
+            ICRN_PYTHON_KERNELS=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_python_kernels\"" "${ICRN_MANAGER_CONFIG}")
+            ICRN_KERNEL_CATALOG=${ICRN_KERNEL_REPOSITORY}"/"$(jq -r ".\"icrn_kernel_catalog\"" "${ICRN_MANAGER_CONFIG}")
+        fi
+    fi
+    
     if [ -z "$cmdname" ]; then
         echo ""
         echo Error: No subcommand specified.
