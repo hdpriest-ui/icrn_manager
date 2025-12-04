@@ -1,18 +1,18 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    branches: [ main, master ]
-    paths:
-      - 'icrn_manager'
-      - 'update_r_libs.sh'
-      - '.github/docker/**'
-  pull_request:
-    branches: [ main, master ]
-    paths:
-      - 'icrn_manager'
-      - 'update_r_libs.sh'
-      - '.github/docker/**'
+  # push:
+  #   branches: [ main, master ]
+  #   paths:
+  #     - 'icrn_manager'
+  #     - 'update_r_libs.sh'
+  #     - '.github/docker/**'
+  # pull_request:
+  #   branches: [ main, master ]
+  #   paths:
+  #     - 'icrn_manager'
+  #     - 'update_r_libs.sh'
+  #     - '.github/docker/**'
   workflow_dispatch:
 
 env:
