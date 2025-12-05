@@ -1,0 +1,14 @@
+---
+# Namespace for ICRN Kernel Manager
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kernels
+  labels:
+    app: icrn-kernel-manager
+    name: kernels
+  annotations:
+    # Pod Security Standards for hardened cluster
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
