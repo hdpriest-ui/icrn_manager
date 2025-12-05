@@ -12,7 +12,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 app = FastAPI(title="ICRN Kernel Manager API", version="1.0.0")
@@ -21,8 +22,13 @@ app = FastAPI(title="ICRN Kernel Manager API", version="1.0.0")
 COLLATED_MANIFESTS_PATH = os.getenv("COLLATED_MANIFESTS_PATH", "/app/data/collated_manifests.json")
 PACKAGE_INDEX_PATH = os.getenv("PACKAGE_INDEX_PATH", "/app/data/package_index.json")
 KERNEL_ROOT = os.getenv("KERNEL_ROOT", "/app/data")
+STATIC_DIR = Path("/app/static")
 DATA_DIR = Path(COLLATED_MANIFESTS_PATH).parent
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Mount static files directory
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Global variable to store loaded data
 collated_manifests: Optional[Dict[str, Any]] = None
@@ -128,16 +134,20 @@ async def startup_event():
 @app.get("/")
 async def root():
     """
-    Root endpoint - returns API information.
-    Note: This service only reads pre-generated JSON files and does not perform indexing.
+    Root endpoint - serves the web interface index.html.
     """
-    return {
-        "service": "ICRN Kernel Manager API",
-        "version": "1.0.0",
-        "status": "running",
-        "note": "This service reads pre-generated files only - no indexing performed",
-        "last_refresh": last_refresh_time.isoformat() if last_refresh_time else None
-    }
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    else:
+        # Fallback to API info if index.html is missing
+        return {
+            "service": "ICRN Kernel Manager API",
+            "version": "1.0.0",
+            "status": "running",
+            "note": "This service reads pre-generated files only - no indexing performed",
+            "last_refresh": last_refresh_time.isoformat() if last_refresh_time else None
+        }
 
 
 @app.get("/health")
