@@ -13,7 +13,10 @@ fi
 
 icrn_base=".icrn"
 icrn_kernels="icrn_kernels"
-central_catalog_default="/sw/icrn/jupyter/icrn_ncsa_resources/Kernels"
+APP_FOLDER=$(dirname $0)
+KERNEL_FOLDER=${KERNEL_FOLDER:-${APP_FOLDER}/../kernels}
+if [ ! -d ${KERNEL_FOLDER} ]; then echo "Could not determine location of kernel respository - contact administrator"; exit -1 ; fi
+central_catalog_default=${KERNEL_FOLDER}
 
 ICRN_USER_BASE=${ICRN_USER_BASE:-${HOME}/${icrn_base}}
 ICRN_MANAGER_CONFIG=${ICRN_MANAGER_CONFIG:-${ICRN_USER_BASE}/manager_config.json}

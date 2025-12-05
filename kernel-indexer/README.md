@@ -30,7 +30,7 @@ docker build -t icrn-kernel-indexer:latest .
 
 ```bash
 docker run --rm \
-  -v /sw/icrn/jupyter/icrn_ncsa_resources/Kernels:/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
+  -v /sw/icrn/dev/kernels:/sw/icrn/dev/kernels \
   icrn-kernel-indexer:latest
 ```
 
@@ -38,8 +38,8 @@ docker run --rm \
 
 ```bash
 docker run --rm \
-  -v /sw/icrn/jupyter/icrn_ncsa_resources/Kernels:/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
-  -e KERNEL_ROOT=/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
+  -v /sw/icrn/dev/kernels:/sw/icrn/dev/kernels \
+  -e KERNEL_ROOT=/sw/icrn/dev/kernels \
   -e LANGUAGE_FILTER=Python \
   -e LOG_LEVEL=DEBUG \
   icrn-kernel-indexer:latest
