@@ -33,9 +33,15 @@ Tested on campus cluster via apptainer, this indexes the central repository of k
 (base) [hdpriest@cc-login2 icrn_manager]$ apptainer pull docker://hdpriest0uiuc/icrn-kernel-indexer
 
 (base) [hdpriest@cc-login2 icrn_manager]$ apptainer run --bind /sw/icrn/jupyter/icrn_ncsa_resources/Kernels:/sw/icrn/jupyter/icrn_ncsa_resources/Kernels icrn-kernel-indexer_latest.sif
+```
 
+For dev and prod environments, the kernel index job needs to be run using a custom kernel root env variable (see directly below)
+
+this will obviously be different based on the container runtime
+```sh
 #### DEV
-(base) [hdpriest@cc-login2 icrn_manager]$ apptainer run --bind /sw/icrn/dev/kernels:/sw/icrn/dev/kernels icrn-kernel-indexer_latest.sif
+(base) [hdpriest@cc-login2 icrn_manager]$ 
+apptainer run --env "KERNEL_ROOT=/sw/icrn/dev/kernels" --bind /sw/icrn/dev/kernels:/sw/icrn/dev/kernels icrn-kernel-indexer_latest.sif
 ## ... output
 Collated manifest written to: /sw/icrn/jupyter/icrn_ncsa_resources/Kernels/collated_manifests.json
 ## ... output
