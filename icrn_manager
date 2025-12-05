@@ -14,7 +14,7 @@ fi
 icrn_base=".icrn"
 icrn_kernels="icrn_kernels"
 APP_FOLDER=$(dirname $0)
-KERNEL_FOLDER=${APP_FOLDER}"/../kernels"
+KERNEL_FOLDER=${KERNEL_FOLDER:-${APP_FOLDER}/../kernels}
 if [ ! -d ${KERNEL_FOLDER} ]; then echo "Could not determine location of kernel respository - contact administrator"; exit -1 ; fi
 central_catalog_default=${KERNEL_FOLDER}
 
