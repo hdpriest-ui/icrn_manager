@@ -1,0 +1,127 @@
+---
+# CronJob to run kernel indexer every hour
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: icrn-kernel-indexer
+  namespace: kernels # Change to your desired namespace
+  labels:
+    app: icrn-kernel-manager
+    component: kernel-indexer
+spec:
+  # Run every hour at minute 0
+  schedule: "0 * * * *"
+
+  # Keep last 3 successful and 5 failed jobs for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+
+  # Deadline to complete the job (in seconds)
+  startingDeadlineSeconds: 300
+
+  jobTemplate:
+    spec:
+      # Complete job within 30 minutes
+      backoffLimit: 2
+      # Keep failed job pods for 7 days for debugging
+      ttlSecondsAfterFinished: 604800
+      template:
+        metadata:
+          labels:
+            app: icrn-kernel-manager
+            component: kernel-indexer
+        spec:
+          serviceAccountName: icrn-indexer # See RBAC below
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+            fsGroup: 55311
+            supplementalGroups:
+              - 55311
+
+          containers:
+            - name: kernel-indexer
+              image: hdpriest0uiuc/icrn-kernel-indexer:latest # Update with your registry/tag
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 1000
+                capabilities:
+                  drop:
+                    - ALL
+
+              env:
+                - name: KERNEL_ROOT
+                  value: "/app/data" # Path where kernels are stored in the NFS mount
+
+              volumeMounts:
+                - name: kernels-data
+                  mountPath: /app/data
+                  readOnly: false # Needs write access to update index files
+
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "500m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1000m"
+
+              # Fail the job if it takes longer than 25 minutes
+              livenessProbe:
+                exec:
+                  command:
+                    - /bin/sh
+                    - -c
+                    - test -f /tmp/indexer.running || exit 1
+                initialDelaySeconds: 60
+                periodSeconds: 300
+
+          volumes:
+            - name: kernels-data
+              persistentVolumeClaim:
+                claimName: icrn-kernels-pvc
+
+          restartPolicy: Never
+
+---
+# ServiceAccount for the kernel indexer CronJob
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: icrn-indexer
+  namespace: kernels # Change to your desired namespace
+  labels:
+    app: icrn-kernel-manager
+
+---
+# ClusterRole for kernel indexer (minimal permissions)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: icrn-indexer-role
+  labels:
+    app: icrn-kernel-manager
+rules:
+  # Minimal permissions - adjust as needed
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding for kernel indexer
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: icrn-indexer-binding
+  labels:
+    app: icrn-kernel-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: icrn-indexer-role
+subjects:
+  - kind: ServiceAccount
+    name: icrn-indexer
+    namespace: kernels # Change to your desired namespace

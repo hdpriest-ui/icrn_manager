@@ -1,0 +1,40 @@
+---
+# PersistentVolume for NFS mount to kernel repository
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: icrn-kernels-pv
+  labels:
+    app: icrn-kernel-manager
+spec:
+  storageClassName: nfs-static
+  capacity:
+    storage: 500Gi  # Adjust based on your kernel repository size
+  accessModes:
+    - ReadWriteMany  # ReadWriteMany allows multiple pods with read and write access
+  nfs:
+    server: harbor-cc.internal.ncsa.edu
+    path: /harbor/illinois/iccp/sw/icrn/dev/kernels
+    readOnly: false
+  persistentVolumeReclaimPolicy: Retain
+
+---
+# PersistentVolumeClaim for the kernels data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: icrn-kernels-pvc
+  namespace: kernels  # Change to your desired namespace
+  labels:
+    app: icrn-kernel-manager
+spec:
+  storageClassName: nfs-static
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Gi
+  selector:
+    matchLabels:
+      app: icrn-kernel-manager
+  volumeName: icrn-kernels-pv
