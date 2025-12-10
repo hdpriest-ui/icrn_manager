@@ -1,0 +1,122 @@
+---
+# Deployment for ICRN Web Interface
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: icrn-web
+  namespace: kernels # Change to your desired namespace
+  labels:
+    app: icrn-web
+    component: web-interface
+spec:
+  replicas: 1 # Adjust based on your needs
+  selector:
+    matchLabels:
+      app: icrn-web
+  template:
+    metadata:
+      labels:
+        app: icrn-web
+        component: web-interface
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: hdpriest0uiuc/icrn-kernel-webserver:latest # Update with your registry/tag
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: COLLATED_MANIFESTS_PATH
+              value: "/app/data/collated_manifests.json"
+            - name: PACKAGE_INDEX_PATH
+              value: "/app/data/package_index.json"
+            - name: WORKERS
+              value: "4"
+          volumeMounts:
+            - name: kernels-data
+              mountPath: /app/data
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: kernels-data
+          persistentVolumeClaim:
+            claimName: icrn-kernels-pvc
+
+---
+# Service for ICRN Web Interface
+apiVersion: v1
+kind: Service
+metadata:
+  name: icrn-web-service
+  namespace: kernels # Change to your desired namespace
+  labels:
+    app: icrn-web
+spec:
+  type: ClusterIP # Change to LoadBalancer if needed
+  selector:
+    app: icrn-web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+      name: http
+
+---
+# Ingress for ICRN Web Interface
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: icrn-web-ingress
+  namespace: kernels # Change to your desired namespace
+  labels:
+    app: icrn-web
+spec:
+  ingressClassName: traefik # Adjust based on your ingress controller
+  tls:
+    - hosts:
+        - kernels.cori-dev.ncsa.illinois.edu
+      secretName: icrn-web-tls
+  rules:
+    - host: kernels.cori-dev.ncsa.illinois.edu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: icrn-web-service
+                port:
+                  number: 80
