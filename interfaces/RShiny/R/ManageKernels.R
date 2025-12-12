@@ -127,16 +127,19 @@ manageKernels <- function() {
     ),
     miniUI::miniContentPanel(
       shiny::div(
-        style = "margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 4px;",
-        shiny::tags$p(
-          style = "margin: 0; font-size: 0.9em;",
-          "For more detailed information and advanced search, please visit the ",
-          shiny::a(href = kernel_web_url, target = "_blank", "kernel information page"),
-          "."
-        )
-      ),
-      shiny::uiOutput("kernel_ui"),
-      shiny::uiOutput("commands_ui")
+        style = "text-align: center; max-width: 800px; margin: 0 auto;",
+        shiny::div(
+          style = "margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 4px;",
+          shiny::tags$p(
+            style = "margin: 0; font-size: 0.9em;",
+            "For more detailed information and advanced search, please visit the ",
+            shiny::a(href = kernel_web_url, target = "_blank", "kernel information page"),
+            "."
+          )
+        ),
+        shiny::uiOutput("kernel_ui"),
+        shiny::uiOutput("commands_ui")
+      )
     )
   )
   
@@ -145,11 +148,53 @@ manageKernels <- function() {
     # NULL = not loaded yet, list with kernels and is_test_data = loaded
     kernels_data <- shiny::reactiveVal(NULL)
     
+    # Reactive values to store command execution results
+    get_command_result <- shiny::reactiveVal(NULL)
+    use_command_result <- shiny::reactiveVal(NULL)
+    command_executing <- shiny::reactiveVal(FALSE)
+    
     # Function to fetch kernels and update reactive value
     fetch_kernels <- function() {
       kernels_data(NULL)  # Set to loading state
       result <- fetch_r_kernels(api_base_url)
       kernels_data(result)
+    }
+    
+    # Function to execute a command and return result
+    execute_command <- function(cmd) {
+      command_executing(TRUE)
+      on.exit(command_executing(FALSE))
+      
+      result <- tryCatch({
+        # Parse command: "icrn_manager kernels get R name version"
+        # Split into command and arguments
+        cmd_parts <- strsplit(cmd, " ")[[1]]
+        if (length(cmd_parts) < 2 || cmd_parts[1] != "icrn_manager") {
+          return(list(success = FALSE, output = "Invalid command format"))
+        }
+        
+        # Execute command and capture both stdout and stderr
+        # system2 will merge stdout and stderr
+        output <- system2(
+          cmd_parts[1],
+          args = cmd_parts[-1],
+          stdout = TRUE,
+          stderr = TRUE,
+          wait = TRUE
+        )
+        
+        # Check exit status
+        exit_status <- attr(output, "status")
+        if (!is.null(exit_status) && exit_status != 0) {
+          return(list(success = FALSE, output = paste(output, collapse = "\n")))
+        }
+        
+        list(success = TRUE, output = paste(output, collapse = "\n"))
+      }, error = function(e) {
+        list(success = FALSE, output = paste("Error:", conditionMessage(e)))
+      })
+      
+      return(result)
     }
     
     # Initial fetch after UI renders
@@ -164,11 +209,22 @@ manageKernels <- function() {
       # Loading state (NULL = not fetched yet)
       if (is.null(data)) {
         return(shiny::div(
-          style = "text-align: center;",
+          style = "text-align: center; padding: 20px;",
+          shiny::tags$div(
+            style = "display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;",
+            shiny::tags$style(HTML("
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            "))
+          ),
           shiny::tags$p(
+            style = "margin-top: 15px; font-size: 1.1em;",
             shiny::tags$strong("Loading kernels...")
           ),
           shiny::tags$p(
+            style = "margin-top: 5px; color: #666;",
             shiny::tags$em("Fetching data from API...")
           )
         ))
@@ -247,11 +303,16 @@ manageKernels <- function() {
       get_cmd <- paste0("icrn_manager kernels get R ", name, " ", version)
       use_cmd <- paste0("icrn_manager kernels use R ", name, " ", version)
       
+      # Get command execution results
+      get_result <- get_command_result()
+      use_result <- use_command_result()
+      is_executing <- command_executing()
+      
       shiny::div(
-        style = "margin-top: 20px; padding: 15px; background-color: #e7f3ff; border-radius: 4px;",
+        style = "margin-top: 20px; padding: 15px; background-color: #e7f3ff; border-radius: 4px; text-align: center;",
         shiny::tags$h4(style = "margin-top: 0;", "Commands for selected kernel:"),
         shiny::div(
-          style = "margin-bottom: 10px;",
+          style = "margin-bottom: 15px;",
           shiny::tags$strong("Get kernel:"),
           shiny::div(
             style = "display: flex; align-items: center; margin-top: 5px;",
@@ -262,13 +323,48 @@ manageKernels <- function() {
             shiny::actionButton(
               "copy_get",
               "Copy",
-              style = "margin-left: 10px;",
+              style = "margin-left: 5px;",
               onclick = paste0("navigator.clipboard.writeText('", get_cmd, "').then(() => alert('Command copied to clipboard!'))")
+            ),
+            shiny::actionButton(
+              "execute_get",
+              if (is_executing) {
+                shiny::tagList(
+                  shiny::tags$span(
+                    style = "display: inline-block; width: 12px; height: 12px; border: 2px solid #ffffff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 5px;",
+                    shiny::tags$style(HTML("
+                      @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                      }
+                    "))
+                  ),
+                  "Executing..."
+                )
+              } else {
+                "Execute"
+              },
+              style = "margin-left: 5px;",
+              disabled = is_executing
             )
-          )
+          ),
+          # Show result if available
+          if (!is.null(get_result)) {
+            shiny::div(
+              style = paste0(
+                "margin-top: 8px; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; ",
+                if (get_result$success) "background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724;" 
+                else "background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;"
+              ),
+              shiny::tags$pre(
+                style = "margin: 0; white-space: pre-wrap; word-wrap: break-word;",
+                get_result$output
+              )
+            )
+          }
         ),
         shiny::div(
-          style = "margin-bottom: 10px;",
+          style = "margin-bottom: 15px;",
           shiny::tags$strong("Use kernel:"),
           shiny::div(
             style = "display: flex; align-items: center; margin-top: 5px;",
@@ -279,12 +375,85 @@ manageKernels <- function() {
             shiny::actionButton(
               "copy_use",
               "Copy",
-              style = "margin-left: 10px;",
+              style = "margin-left: 5px;",
               onclick = paste0("navigator.clipboard.writeText('", use_cmd, "').then(() => alert('Command copied to clipboard!'))")
+            ),
+            shiny::actionButton(
+              "execute_use",
+              if (is_executing) {
+                shiny::tagList(
+                  shiny::tags$span(
+                    style = "display: inline-block; width: 12px; height: 12px; border: 2px solid #ffffff; border-top: 2px solid transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 5px;",
+                    shiny::tags$style(HTML("
+                      @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                      }
+                    "))
+                  ),
+                  "Executing..."
+                )
+              } else {
+                "Execute"
+              },
+              style = "margin-left: 5px;",
+              disabled = is_executing
             )
-          )
+          ),
+          # Show result if available
+          if (!is.null(use_result)) {
+            shiny::div(
+              style = paste0(
+                "margin-top: 8px; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.85em; ",
+                if (use_result$success) "background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724;" 
+                else "background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;"
+              ),
+              shiny::tags$pre(
+                style = "margin: 0; white-space: pre-wrap; word-wrap: break-word;",
+                use_result$output
+              )
+            )
+          }
         )
       )
+    })
+    
+    # Handle execute get button
+    shiny::observeEvent(input$execute_get, {
+      if (is.null(input$kernel_choice) || input$kernel_choice == "") {
+        return()
+      }
+      
+      parts <- strsplit(input$kernel_choice, "-", fixed = TRUE)[[1]]
+      if (length(parts) < 2) {
+        return()
+      }
+      
+      version <- parts[length(parts)]
+      name <- paste(parts[-length(parts)], collapse = "-")
+      get_cmd <- paste0("icrn_manager kernels get R ", name, " ", version)
+      
+      result <- execute_command(get_cmd)
+      get_command_result(result)
+    })
+    
+    # Handle execute use button
+    shiny::observeEvent(input$execute_use, {
+      if (is.null(input$kernel_choice) || input$kernel_choice == "") {
+        return()
+      }
+      
+      parts <- strsplit(input$kernel_choice, "-", fixed = TRUE)[[1]]
+      if (length(parts) < 2) {
+        return()
+      }
+      
+      version <- parts[length(parts)]
+      name <- paste(parts[-length(parts)], collapse = "-")
+      use_cmd <- paste0("icrn_manager kernels use R ", name, " ", version)
+      
+      result <- execute_command(use_cmd)
+      use_command_result(result)
     })
     
     # Handle refresh button
