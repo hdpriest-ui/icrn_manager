@@ -367,9 +367,9 @@ manageKernels <- function() {
           style = "margin-bottom: 15px;",
           shiny::tags$strong("Use kernel:"),
           shiny::div(
-            style = "display: flex; align-items: center; margin-top: 5px;",
+            style = "display: flex; align-items: center; justify-content: center; margin-top: 5px; gap: 5px;",
             shiny::tags$code(
-              style = "flex: 1; padding: 8px; background-color: white; border: 1px solid #ccc; border-radius: 4px; font-family: monospace;",
+              style = "flex: 1; max-width: 500px; padding: 8px; background-color: white; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; text-align: left;",
               use_cmd
             ),
             shiny::actionButton(
