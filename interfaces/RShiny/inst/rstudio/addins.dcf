@@ -1,0 +1,4 @@
+Name: Manage Kernels
+Description: Enables swapping of Kernels
+Binding: manageKernels
+Interactive: true
