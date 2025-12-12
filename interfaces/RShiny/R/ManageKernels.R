@@ -59,26 +59,35 @@ manageKernels <- function() {
   # Server-side R process makes the request, so CORS is not needed
   api_base_url <- "http://icrn-web-service.kernels:80"
   
-  # Fetch R kernels from API
-  kernels_choices <- fetch_r_kernels(api_base_url)
-  
-  # Determine if we have kernels or an error
-  has_kernels <- length(kernels_choices) > 0
-  error_message <- if (!has_kernels) {
-    "Unable to fetch R kernels from the API. Please check your connection and try again."
-  } else {
-    NULL
-  }
-  
   ui <- miniUI::miniPage(
     miniUI::gadgetTitleBar(
       shiny::p(
         "Select an ICRN R kernel from",
         shiny::a(href = "https://github.com/hdpriest-ui/icrn_manager", "icrn manager")
       ),
+      left = miniUI::miniTitleBarButton("refresh", "Refresh", primary = FALSE),
       right = miniUI::miniTitleBarButton("done", "Done", primary = TRUE)
     ),
     miniUI::miniContentPanel(
+      shiny::uiOutput("kernel_ui")
+    )
+  )
+  
+  server <- function(input, output, session) {
+    # Reactive value to trigger refresh
+    refresh_trigger <- shiny::reactiveVal(0)
+    
+    # Reactive expression to fetch kernels
+    kernels_data <- shiny::reactive({
+      refresh_trigger()  # Depend on refresh trigger
+      fetch_r_kernels(api_base_url)
+    })
+    
+    # Render the kernel UI based on fetch result
+    output$kernel_ui <- shiny::renderUI({
+      kernels_choices <- kernels_data()
+      has_kernels <- length(kernels_choices) > 0
+      
       if (has_kernels) {
         shiny::selectizeInput(
           "kernel_choice",
@@ -95,18 +104,24 @@ manageKernels <- function() {
         shiny::div(
           shiny::tags$p(
             shiny::tags$strong("Error: "),
-            error_message
+            "Unable to fetch R kernels from the API. Please check your connection and try again."
           ),
           shiny::tags$p(
             "API URL: ",
             shiny::tags$code(api_base_url)
+          ),
+          shiny::tags$p(
+            shiny::tags$em("Click 'Refresh' to retry.")
           )
         )
       }
-    )
-  )
-  
-  server <- function(input, output, session) {
+    })
+    
+    # Handle refresh button
+    shiny::observeEvent(input$refresh, {
+      refresh_trigger(refresh_trigger() + 1)
+    })
+    
     # Handle done button
     shiny::observeEvent(input$done, {
       shiny::stopApp(input$kernel_choice)
