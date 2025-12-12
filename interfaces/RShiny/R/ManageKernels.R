@@ -253,14 +253,15 @@ manageKernels <- function() {
         shiny::tagList(
           warning_msg,
           shiny::div(
-            style = "text-align: center; margin-bottom: 20px; display: flex; justify-content: center;",
+            style = "text-align: center; margin-bottom: 20px;",
             shiny::div(
-              style = "width: 100%; max-width: 500px;",
+              style = "display: inline-block; width: 100%; max-width: 500px;",
               shiny::selectizeInput(
                 "kernel_choice",
                 "Search and select an R kernel:",
                 choices = kernels_choices,
                 selected = NULL,
+                width = "100%",
                 options = list(
                   placeholder = "Click to see available kernels...",
                   maxOptions = length(kernels_choices),
@@ -319,9 +320,9 @@ manageKernels <- function() {
           style = "margin-bottom: 15px;",
           shiny::tags$strong("Get kernel:"),
           shiny::div(
-            style = "display: flex; align-items: center; margin-top: 5px;",
+            style = "display: flex; align-items: center; justify-content: center; margin-top: 5px; gap: 5px;",
             shiny::tags$code(
-              style = "flex: 1; padding: 8px; background-color: white; border: 1px solid #ccc; border-radius: 4px; font-family: monospace;",
+              style = "flex: 1; max-width: 500px; padding: 8px; background-color: white; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; text-align: center;",
               get_cmd
             ),
             shiny::actionButton(
@@ -373,7 +374,7 @@ manageKernels <- function() {
           shiny::div(
             style = "display: flex; align-items: center; justify-content: center; margin-top: 5px; gap: 5px;",
             shiny::tags$code(
-              style = "flex: 1; max-width: 500px; padding: 8px; background-color: white; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; text-align: left;",
+              style = "flex: 1; max-width: 500px; padding: 8px; background-color: white; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; text-align: center;",
               use_cmd
             ),
             shiny::actionButton(
