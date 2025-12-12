@@ -253,16 +253,19 @@ manageKernels <- function() {
         shiny::tagList(
           warning_msg,
           shiny::div(
-            style = "text-align: center; margin-bottom: 20px;",
-            shiny::selectizeInput(
-              "kernel_choice",
-              "Search and select an R kernel:",
-              choices = kernels_choices,
-              selected = NULL,
-              options = list(
-                placeholder = "Click to see available kernels...",
-                maxOptions = length(kernels_choices),
-                searchField = c("text", "value")
+            style = "text-align: center; margin-bottom: 20px; display: flex; justify-content: center;",
+            shiny::div(
+              style = "width: 100%; max-width: 500px;",
+              shiny::selectizeInput(
+                "kernel_choice",
+                "Search and select an R kernel:",
+                choices = kernels_choices,
+                selected = NULL,
+                options = list(
+                  placeholder = "Click to see available kernels...",
+                  maxOptions = length(kernels_choices),
+                  searchField = c("text", "value")
+                )
               )
             )
           )
@@ -270,6 +273,7 @@ manageKernels <- function() {
       } else {
         # Error/empty state
         shiny::div(
+          style = "text-align: center;",
           shiny::tags$p(
             shiny::tags$strong("Error: "),
             "Unable to fetch R kernels from the API. Please check your connection and try again."
