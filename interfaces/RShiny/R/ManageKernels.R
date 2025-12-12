@@ -74,20 +74,40 @@ manageKernels <- function() {
   )
   
   server <- function(input, output, session) {
-    # Reactive value to trigger refresh
-    refresh_trigger <- shiny::reactiveVal(0)
+    # Reactive value to store kernels data
+    # NULL = not loaded yet, character(0) = error/empty, character vector = kernels
+    kernels_data <- shiny::reactiveVal(NULL)
     
-    # Reactive expression to fetch kernels
-    kernels_data <- shiny::reactive({
-      refresh_trigger()  # Depend on refresh trigger
-      fetch_r_kernels(api_base_url)
+    # Function to fetch kernels and update reactive value
+    fetch_kernels <- function() {
+      kernels_data(NULL)  # Set to loading state
+      result <- fetch_r_kernels(api_base_url)
+      kernels_data(result)
+    }
+    
+    # Initial fetch after UI renders
+    shiny::observe({
+      fetch_kernels()
     })
     
     # Render the kernel UI based on fetch result
     output$kernel_ui <- shiny::renderUI({
       kernels_choices <- kernels_data()
-      has_kernels <- length(kernels_choices) > 0
       
+      # Loading state (NULL = not fetched yet)
+      if (is.null(kernels_choices)) {
+        return(shiny::div(
+          shiny::tags$p(
+            shiny::tags$strong("Loading kernels...")
+          ),
+          shiny::tags$p(
+            shiny::tags$em("Fetching data from API...")
+          )
+        ))
+      }
+      
+      # Success state (has kernels)
+      has_kernels <- length(kernels_choices) > 0
       if (has_kernels) {
         shiny::selectizeInput(
           "kernel_choice",
@@ -101,6 +121,7 @@ manageKernels <- function() {
           )
         )
       } else {
+        # Error/empty state
         shiny::div(
           shiny::tags$p(
             shiny::tags$strong("Error: "),
@@ -119,7 +140,7 @@ manageKernels <- function() {
     
     # Handle refresh button
     shiny::observeEvent(input$refresh, {
-      refresh_trigger(refresh_trigger() + 1)
+      fetch_kernels()
     })
     
     # Handle done button
