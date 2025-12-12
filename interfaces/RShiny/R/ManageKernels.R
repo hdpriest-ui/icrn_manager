@@ -55,7 +55,9 @@ manageKernels <- function() {
   # nocov start
   
   # Hardcoded API configuration
-  api_base_url <- "https://kernels.cori-dev.ncsa.illinois.edu"
+  # Using internal Kubernetes service - accessible from within the cluster
+  # Server-side R process makes the request, so CORS is not needed
+  api_base_url <- "http://icrn-web-service.kernels:80"
   
   # Fetch R kernels from API
   kernels_choices <- fetch_r_kernels(api_base_url)
