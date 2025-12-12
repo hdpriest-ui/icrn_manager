@@ -14,9 +14,34 @@ from typing import Optional, Dict, Any, List
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 app = FastAPI(title="ICRN Kernel Manager API", version="1.0.0")
+
+# CORS configuration - restrict to specific origins for security
+# Set ALLOWED_ORIGINS environment variable as comma-separated list of URLs
+# Example: ALLOWED_ORIGINS="https://rstudio.example.com,https://shiny.example.edu"
+# Or set to "*" to allow all origins (not recommended for production)
+ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "")
+if ALLOWED_ORIGINS_ENV:
+    if ALLOWED_ORIGINS_ENV == "*":
+        allowed_origins = ["*"]
+    else:
+        # Split comma-separated origins and strip whitespace
+        allowed_origins = [origin.strip() for origin in ALLOWED_ORIGINS_ENV.split(",") if origin.strip()]
+else:
+    # Default: no origins allowed (most secure, must be explicitly configured)
+    allowed_origins = []
+
+# Add CORS middleware to allow browser requests (e.g., from R Shiny)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # Configuration
 COLLATED_MANIFESTS_PATH = os.getenv("COLLATED_MANIFESTS_PATH", "/app/data/collated_manifests.json")

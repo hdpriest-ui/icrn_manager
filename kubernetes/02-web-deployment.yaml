@@ -43,6 +43,8 @@ spec:
               value: "/app/data/package_index.json"
             - name: WORKERS
               value: "4"
+            - name: ALLOWED_ORIGINS
+              value: "https://jupyter.ncsa.illinois.edu,https://jupyter.cori-dev.ncsa.illinois.edu"
           volumeMounts:
             - name: kernels-data
               mountPath: /app/data

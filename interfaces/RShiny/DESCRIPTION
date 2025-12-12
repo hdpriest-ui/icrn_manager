@@ -1,0 +1,10 @@
+Package: icrnManager
+Type: Package
+Title: ICRN Kernel Manager R Interface
+Version: 0.1.0
+Imports:
+    httr,
+    shiny,
+    miniUI
+Description: R Shiny interface for managing ICRN kernels via web API.
+
