@@ -39,12 +39,12 @@ get_test_r_kernels <- function() {
 #'
 #' @param api_base_url Base URL for the API
 #' @param use_test_data Logical, if TRUE always returns test data (for development)
-#' @return Character vector of kernel choices in format "kernel_name-version"
+#' @return List with 'kernels' (character vector) and 'is_test_data' (logical)
 #' @keywords internal
 fetch_r_kernels <- function(api_base_url = "https://kernels.cori-dev.ncsa.illinois.edu", use_test_data = FALSE) {
   # If use_test_data is TRUE, return test data immediately
   if (use_test_data) {
-    return(get_test_r_kernels())
+    return(list(kernels = get_test_r_kernels(), is_test_data = TRUE))
   }
   
   language <- "r"  # Hardcoded to R kernels only
@@ -65,7 +65,7 @@ fetch_r_kernels <- function(api_base_url = "https://kernels.cori-dev.ncsa.illino
     # Validate response structure
     if (is.null(data$kernels) || length(data$kernels) == 0) {
       # API returned empty, fall back to test data
-      return(get_test_r_kernels())
+      return(list(kernels = get_test_r_kernels(), is_test_data = TRUE))
     }
     
     # Format kernels as "kernel_name-version" for radioButtons
@@ -82,13 +82,13 @@ fetch_r_kernels <- function(api_base_url = "https://kernels.cori-dev.ncsa.illino
     
     # If we got kernels from API, return them; otherwise fall back to test data
     if (length(choices) > 0) {
-      return(choices)
+      return(list(kernels = choices, is_test_data = FALSE))
     } else {
-      return(get_test_r_kernels())
+      return(list(kernels = get_test_r_kernels(), is_test_data = TRUE))
     }
   }, error = function(e) {
     # On any error (network, parsing, etc.), fall back to test data
-    return(get_test_r_kernels())
+    return(list(kernels = get_test_r_kernels(), is_test_data = TRUE))
   })
 }
 
@@ -135,13 +135,14 @@ manageKernels <- function() {
           "."
         )
       ),
-      shiny::uiOutput("kernel_ui")
+      shiny::uiOutput("kernel_ui"),
+      shiny::uiOutput("commands_ui")
     )
   )
   
   server <- function(input, output, session) {
     # Reactive value to store kernels data
-    # NULL = not loaded yet, character(0) = error/empty, character vector = kernels
+    # NULL = not loaded yet, list with kernels and is_test_data = loaded
     kernels_data <- shiny::reactiveVal(NULL)
     
     # Function to fetch kernels and update reactive value
@@ -158,11 +159,12 @@ manageKernels <- function() {
     
     # Render the kernel UI based on fetch result
     output$kernel_ui <- shiny::renderUI({
-      kernels_choices <- kernels_data()
+      data <- kernels_data()
       
       # Loading state (NULL = not fetched yet)
-      if (is.null(kernels_choices)) {
+      if (is.null(data)) {
         return(shiny::div(
+          style = "text-align: center;",
           shiny::tags$p(
             shiny::tags$strong("Loading kernels...")
           ),
@@ -172,18 +174,41 @@ manageKernels <- function() {
         ))
       }
       
+      kernels_choices <- data$kernels
+      is_test_data <- data$is_test_data
+      
       # Success state (has kernels)
       has_kernels <- length(kernels_choices) > 0
       if (has_kernels) {
-        shiny::selectizeInput(
-          "kernel_choice",
-          "Search and select an R kernel:",
-          choices = kernels_choices,
-          selected = NULL,
-          options = list(
-            placeholder = "Type to search for a kernel...",
-            maxOptions = length(kernels_choices),
-            searchField = c("text", "value")
+        # Add test data indicator to choices if needed
+        warning_msg <- if (is_test_data) {
+          shiny::div(
+            style = "margin-bottom: 10px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; text-align: center;",
+            shiny::tags$p(
+              style = "margin: 0; font-size: 0.9em; color: #856404;",
+              shiny::tags$strong("⚠ ERROR STATE: "),
+              "Using test data. API connection unavailable."
+            )
+          )
+        } else {
+          NULL
+        }
+        
+        shiny::tagList(
+          warning_msg,
+          shiny::div(
+            style = "text-align: center; margin-bottom: 20px;",
+            shiny::selectizeInput(
+              "kernel_choice",
+              "Search and select an R kernel:",
+              choices = kernels_choices,
+              selected = NULL,
+              options = list(
+                placeholder = "Click to see available kernels...",
+                maxOptions = length(kernels_choices),
+                searchField = c("text", "value")
+              )
+            )
           )
         )
       } else {
@@ -202,6 +227,64 @@ manageKernels <- function() {
           )
         )
       }
+    })
+    
+    # Render commands UI when kernel is selected
+    output$commands_ui <- shiny::renderUI({
+      if (is.null(input$kernel_choice) || input$kernel_choice == "") {
+        return(NULL)
+      }
+      
+      # Parse kernel name and version from selection (format: "kernel_name-version")
+      parts <- strsplit(input$kernel_choice, "-", fixed = TRUE)[[1]]
+      if (length(parts) < 2) {
+        return(NULL)
+      }
+      
+      version <- parts[length(parts)]
+      name <- paste(parts[-length(parts)], collapse = "-")
+      
+      get_cmd <- paste0("icrn_manager kernels get R ", name, " ", version)
+      use_cmd <- paste0("icrn_manager kernels use R ", name, " ", version)
+      
+      shiny::div(
+        style = "margin-top: 20px; padding: 15px; background-color: #e7f3ff; border-radius: 4px;",
+        shiny::tags$h4(style = "margin-top: 0;", "Commands for selected kernel:"),
+        shiny::div(
+          style = "margin-bottom: 10px;",
+          shiny::tags$strong("Get kernel:"),
+          shiny::div(
+            style = "display: flex; align-items: center; margin-top: 5px;",
+            shiny::tags$code(
+              style = "flex: 1; padding: 8px; background-color: white; border: 1px solid #ccc; border-radius: 4px; font-family: monospace;",
+              get_cmd
+            ),
+            shiny::actionButton(
+              "copy_get",
+              "Copy",
+              style = "margin-left: 10px;",
+              onclick = paste0("navigator.clipboard.writeText('", get_cmd, "').then(() => alert('Command copied to clipboard!'))")
+            )
+          )
+        ),
+        shiny::div(
+          style = "margin-bottom: 10px;",
+          shiny::tags$strong("Use kernel:"),
+          shiny::div(
+            style = "display: flex; align-items: center; margin-top: 5px;",
+            shiny::tags$code(
+              style = "flex: 1; padding: 8px; background-color: white; border: 1px solid #ccc; border-radius: 4px; font-family: monospace;",
+              use_cmd
+            ),
+            shiny::actionButton(
+              "copy_use",
+              "Copy",
+              style = "margin-left: 10px;",
+              onclick = paste0("navigator.clipboard.writeText('", use_cmd, "').then(() => alert('Command copied to clipboard!'))")
+            )
+          )
+        )
+      )
     })
     
     # Handle refresh button
