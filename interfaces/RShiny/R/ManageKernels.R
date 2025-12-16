@@ -104,7 +104,8 @@ manageKernels <- function() {
   # Hardcoded API configuration
   # Using internal Kubernetes service - accessible from within the cluster
   # Server-side R process makes the request, so CORS is not needed
-  api_base_url <- "http://icrn-web-service.kernels:80"
+  # api_base_url <- "http://icrn-web-service.kernels:80"
+  api_base_url = "https://kernels.cori-dev.ncsa.illinois.edu"
   
   # Public web URL for the kernel information page
   # Detect environment based on hostname or use dev as default
