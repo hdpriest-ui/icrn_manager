@@ -14,7 +14,7 @@ fi
 icrn_base=".icrn"
 icrn_kernels="icrn_kernels"
 APP_FOLDER=$(dirname $0)
-KERNEL_FOLDER=${APP_FOLDER}"/../kernels"
+KERNEL_FOLDER=${KERNEL_FOLDER:-${APP_FOLDER}/../kernels}
 if [ ! -d ${KERNEL_FOLDER} ]; then echo "Could not determine location of kernel respository - contact administrator"; exit -1 ; fi
 central_catalog_default=${KERNEL_FOLDER}
 
@@ -1132,7 +1132,7 @@ if declare -f "$1" >/dev/null 2>&1; then
         if [ ! -e "$ICRN_USER_CATALOG" ]; then
             echo "Couldn't locate user catalog at:"
             echo "$ICRN_USER_CATALOG"
-            echo "Did you run `./icrn_manager kernels init`?"
+            echo "Did you run `icrn_manager kernels init`?"
             environment_error=true
         fi
         if [ ! -e "$ICRN_KERNEL_CATALOG" ]; then
