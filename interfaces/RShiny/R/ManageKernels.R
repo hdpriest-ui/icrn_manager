@@ -47,7 +47,7 @@ fetch_r_kernels <- function(api_base_url = "https://kernels.cori-dev.ncsa.illino
     return(list(kernels = get_test_r_kernels(), is_test_data = TRUE))
   }
   
-  language <- "r"  # Hardcoded to R kernels only
+  language <- "R"  # Hardcoded to R kernels only
   
   tryCatch({
     # Construct API endpoint URL
