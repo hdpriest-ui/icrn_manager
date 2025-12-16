@@ -12,11 +12,11 @@ First, initialize the manager with a path to the central repository:
 
    ./icrn_manager kernels init /path/to/central/repository
 
-Example for development:
+Example:
 
 .. code-block:: bash
 
-   ./icrn_manager kernels init /u/hdpriest/icrn_temp_repository
+   ./icrn_manager kernels init /sw/icrn/jupyter/icrn_ncsa_resources/Kernels
 
 This creates the necessary configuration files and directories in your home directory.
 

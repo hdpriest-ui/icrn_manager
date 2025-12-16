@@ -32,9 +32,9 @@ CLI Tool & Web UI → Users discover and manage kernels
 ```sh
 ./icrn_manager kernels init <path to central repository>
 ```
-Example for development work:
+Example:
 ```sh
-./icrn_manager kernels init /u/hdpriest/icrn_temp_repository
+./icrn_manager kernels init /sw/icrn/jupyter/icrn_ncsa_resources/Kernels
 ```
 <img src="documentation/demo_resources/icrn_manage_init.gif" align="center" width="600"/>
 
