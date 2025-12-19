@@ -3,6 +3,14 @@ RStudio Interface
 
 The ICRN Kernel Manager provides a graphical interface for RStudio users through an RStudio Addin. This interface allows you to browse, select, and activate R kernels without using the command line.
 
+Typical Workflow
+~~~~~~~~~~~~~~~~
+
+1. Select a kernel from the dropdown
+2. Click **Execute** next to "Get kernel" (first time only)
+3. Click **Execute** next to "Use kernel"
+4. **Restart your R session** (see below)
+
 Accessing the Kernel Manager
 ----------------------------
 
@@ -13,9 +21,6 @@ To open the Kernel Manager in RStudio:
 
 This opens a dialog window where you can browse and manage available R kernels.
 
-.. note::
-   The RStudio Addin requires the ``icrnManager`` package to be installed. This is pre-installed in the ICRN environment.
-
 Browsing Available Kernels
 --------------------------
 
@@ -23,7 +28,7 @@ When the Kernel Manager opens:
 
 1. A searchable dropdown displays all available R kernels
 2. Kernels are listed in the format ``kernel_name-version`` (e.g., ``bioconductor-3.20``, ``tidyverse-4.4``)
-3. Use the search box to filter kernels by name
+3. Begin typing in the search box to filter kernels by name
 
 For more detailed information about kernel contents and package lists, click the link to the **kernel information page** shown at the top of the dialog.
 
@@ -44,13 +49,6 @@ Once you select a kernel from the dropdown, two commands are displayed:
    - Click **Copy** to copy the command to your clipboard
    - Click **Execute** to run the command directly
 
-Typical Workflow
-~~~~~~~~~~~~~~~~
-
-1. Select a kernel from the dropdown
-2. Click **Execute** next to "Get kernel" (first time only)
-3. Click **Execute** next to "Use kernel"
-4. **Restart your R session** (see below)
 
 Restarting Your R Session
 -------------------------
@@ -102,7 +100,6 @@ Web Interface
 For advanced searching and detailed kernel information, visit the ICRN Kernel Information web interface:
 
 - **Production**: https://kernels.ncsa.illinois.edu
-- **Development**: https://kernels.cori-dev.ncsa.illinois.edu
 
 The web interface allows you to:
 

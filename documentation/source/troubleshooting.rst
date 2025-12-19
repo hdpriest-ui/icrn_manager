@@ -40,13 +40,14 @@ If commands fail with configuration errors:
 
 .. code-block:: bash
 
-   You must run "icrn_manager kernels init" prior to leveraging this tool.
    Couldn't locate user catalog at: /path/to/catalog
+   Problem with determining central kernel information
 
 **Solution:**
-- Run `./icrn_manager kernels init <repository_path>` to initialize the environment
-- Verify the central repository path is correct and accessible
-- Check that the catalog files exist and are readable
+- The system should automatically initialize when first used. If you see configuration errors:
+  - Verify the central repository path is correct and accessible
+  - Check that the catalog files exist and are readable
+  - If automatic initialization fails, you can manually run `./icrn_manager kernels init <repository_path>` to configure the environment
 
 **Kernel Not Found Errors**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

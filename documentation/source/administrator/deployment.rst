@@ -36,10 +36,10 @@ Copy the tools to a location in the system PATH:
 .. code-block:: bash
 
    # Production paths
-   cp ./icrn_manager /sw/icrn/bin/
-   cp ./update_r_libs.sh /sw/icrn/bin/
-   chmod +x /sw/icrn/bin/icrn_manager
-   chmod +x /sw/icrn/bin/update_r_libs.sh
+   cp ./icrn_manager /sw/icrn/prod/bin/
+   cp ./update_r_libs.sh /sw/icrn/prod/bin/
+   chmod +x /sw/icrn/prod/bin/icrn_manager
+   chmod +x /sw/icrn/prod/bin/update_r_libs.sh
 
    # Development paths
    cp ./icrn_manager /sw/icrn/dev/bin/

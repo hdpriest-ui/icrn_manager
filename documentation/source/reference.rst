@@ -6,14 +6,6 @@ This section documents each subcommand of the Illinois Computes Library & Kernel
 Subcommands
 -----------
 
-- **init**
-
-  .. code-block:: bash
-
-     ./icrn_manager kernels init [<central_repo_path>]
-
-  Initialize user configuration and point to a central repository.
-
 - **available** (alias: avail)
 
   .. code-block:: bash

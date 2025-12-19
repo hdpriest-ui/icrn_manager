@@ -29,16 +29,6 @@ CLI Tool & Web UI → Users discover and manage kernels
 
 
 ## User Installation
-```sh
-./icrn_manager kernels init <path to central repository>
-```
-Example:
-```sh
-./icrn_manager kernels init /sw/icrn/jupyter/icrn_ncsa_resources/Kernels
-```
-<img src="documentation/demo_resources/icrn_manage_init.gif" align="center" width="600"/>
-
-This command can be run again to point at a different central repository, without disrupting the user's files.
 
 ## Usage
 The ICRN Kernel Manager has all familiar operations for listing, getting, and using entites from a catalog or repository of kernel packages organized by language:

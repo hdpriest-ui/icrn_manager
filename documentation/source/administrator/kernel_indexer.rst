@@ -54,14 +54,14 @@ For HPC environments using Apptainer:
 
    # Run with default paths (production)
    apptainer run \
-     --bind /sw/icrn/jupyter/icrn_ncsa_resources/Kernels:/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
+     --bind /sw/icrn/prod/kernels:/sw/icrn/prod/kernels \
      icrn-kernel-indexer_latest.sif
 
 Environment Variables
 ---------------------
 
 ``KERNEL_ROOT``
-   Path to the root directory containing kernel subdirectories. Defaults to ``/sw/icrn/jupyter/icrn_ncsa_resources/Kernels``.
+   Path to the root directory containing kernel subdirectories. Defaults to ``/sw/icrn/prod/kernels``.
 
 Kubernetes CronJob
 ------------------
