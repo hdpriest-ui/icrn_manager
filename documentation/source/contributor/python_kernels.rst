@@ -1,7 +1,7 @@
-Python Kernels (Maintainer)
-==========================
+Python Kernels
+==============
 
-This section provides guidance for maintainers on creating and managing Python kernels for the ICRN platform.
+This section provides guidance for creating and managing Python kernels for the ICRN platform.
 
 Creating Python Kernels
 ----------------------

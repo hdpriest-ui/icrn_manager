@@ -136,4 +136,4 @@ If you continue to experience issues:
 3. **Review configuration**: Ensure all paths and permissions are correct
 4. **Report issues**: Create an issue on GitHub with detailed error information
 
-For more detailed information, see the :doc:`user_guide` and :doc:`maintainer_guide`. 
+For more detailed information, see the :doc:`user/index` and :doc:`contributor/index`. 

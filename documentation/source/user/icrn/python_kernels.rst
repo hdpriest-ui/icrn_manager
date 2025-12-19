@@ -156,19 +156,6 @@ To remove a Python kernel from Jupyter (but keep the files):
 
    icrn_manager kernels use Python none
 
-To completely remove a kernel and its files:
-
-.. code-block:: bash
-
-   icrn_manager kernels remove Python astro 1.0
-
-**Clean Up Kernel Entries**
-
-To remove just the catalog entry without deleting files:
-
-.. code-block:: bash
-
-   icrn_manager kernels clean Python astro 1.0
 
 Troubleshooting
 --------------
@@ -193,6 +180,5 @@ If kernel installation fails:
 
 1. Check that the kernel package was downloaded correctly
 2. Verify your user catalog is properly configured
-3. Try removing and re-adding the kernel
 
 For more help, see the :doc:`../../troubleshooting` guide. 

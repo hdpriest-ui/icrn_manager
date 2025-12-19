@@ -86,19 +86,7 @@ To remove a Jupyter kernel from your ICRN environment:
 
       icrn_manager kernels use Python none
 
-2. **Remove the kernel**:
-
-   .. code-block:: bash
-
-      icrn_manager kernels remove Python <kernel_name> <version>
-
-3. **Clean up catalog entry**:
-
-   .. code-block:: bash
-
-      icrn_manager kernels clean Python <kernel_name> <version>
-
-4. **Verify removal**:
+2. **Verify removal**:
 
    .. code-block:: bash
 
@@ -127,7 +115,6 @@ If kernel installation fails:
 
 1. Check that the kernel package was downloaded correctly
 2. Verify your user catalog is properly configured
-3. Try removing and re-adding the kernel
 
 .. note::
    Always restart your Jupyter session after making changes to kernel configurations. 
