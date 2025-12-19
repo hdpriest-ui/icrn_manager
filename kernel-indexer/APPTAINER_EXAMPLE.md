@@ -10,7 +10,7 @@ apptainer pull icrn-kernel-indexer.sif docker://hdpriest0uiuc/icrn-kernel-indexe
 Run the indexer with default configuration (indexes all languages):
 
 ```bash
-apptainer run --bind /sw/icrn/jupyter/icrn_ncsa_resources/Kernels:/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
+apptainer run --bind /sw/icrn/dev/kernels:/sw/icrn/dev/kernels \
     icrn-kernel-indexer.sif
 ```
 
@@ -59,8 +59,8 @@ apptainer run \
 
 ```bash
 apptainer run \
-    --bind /sw/icrn/jupyter/icrn_ncsa_resources/Kernels:/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
-    --env KERNEL_ROOT=/sw/icrn/jupyter/icrn_ncsa_resources/Kernels \
+    --bind /sw/icrn/dev/kernels:/sw/icrn/dev/kernels \
+    --env KERNEL_ROOT=/sw/icrn/dev/kernels \
     --env LANGUAGE_FILTER=Python \
     --env LOG_LEVEL=INFO \
     --env ATOMIC_WRITES=true \
