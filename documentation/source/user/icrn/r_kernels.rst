@@ -27,18 +27,24 @@ This command will:
 
 1. Activate the specified R kernel
 2. Update your R environment configuration
-3. Make the kernel available in RStudio and Jupyter
+3. Make the kernel available in RStudio
 
 Verifying the Switch
 ~~~~~~~~~~~~~~~~~~~
 
 After switching, you can verify the active kernel:
 
-.. code-block:: bash
+.. code-block:: R
 
-   icrn_manager kernels list
+   .libPaths()
 
-This will show your currently installed and active kernels.
+This will show your currently active library paths, the first being your active kernel.
+
+.. code-block:: R
+
+   .packages()
+
+This will show you your currently installed packages.
 
 How to Restart R Kernels
 ------------------------
@@ -62,14 +68,6 @@ In RStudio:
 1. Go to the **Session** menu
 2. Select **Restart R**
 
-In Jupyter:
-1. Go to the **Kernel** menu
-2. Select **Restart**
-
-In R Console:
-1. Use the `q()` command to quit
-2. Restart R from the command line
-
 Verifying the Restart
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -79,9 +77,6 @@ After restarting, verify your R environment:
 
    # Check loaded packages
    .packages()
-   
-   # Check R version
-   R.version.string
    
    # Check library paths
    .libPaths()

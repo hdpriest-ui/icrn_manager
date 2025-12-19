@@ -27,6 +27,27 @@ Each kernel submission must include:
    * - Package List
      - Complete list of included packages with versions
 
+Indexing Kernels
+----------------
+
+The ``kernel_indexer`` script can be used to create package manifests and inventory all kernels in a repository. This is useful for:
+
+- Tracking which packages are included in each kernel
+- Generating package inventories for documentation
+- Creating indexes for package discovery
+
+To index all Python kernels in a repository:
+
+.. code-block:: bash
+
+   ./kernel_indexer index --kernel-root /path/to/repository --language Python
+
+This creates a ``package_manifest.json`` file in each kernel directory containing:
+- Kernel name and version
+- Language and language version
+- Complete list of packages with versions and sources
+- Indexing timestamp
+
 Required Directory Structure
 ----------------------------
 
@@ -48,7 +69,6 @@ Python Kernels
 .. code-block:: text
 
    <kernel_root>/Python/<kernel_name>/<version>/
-   ├── conda-meta/           # Conda environment metadata
    ├── lib/
    │   └── python3.x/
    │       └── site-packages/
@@ -77,23 +97,6 @@ The ``package_manifest.json`` file must conform to this schema:
      ]
    }
 
-Catalog Entry
--------------
-
-After creating the kernel, add an entry to ``icrn_kernel_catalog.json``:
-
-.. code-block:: json
-
-   {
-     "R": {
-       "mykernel": {
-         "1.0": {
-           "path": "R/mykernel/1.0",
-           "description": "Description of the kernel"
-         }
-       }
-     }
-   }
 
 Quality Requirements
 --------------------
@@ -118,7 +121,7 @@ Naming Conventions
 Version Guidelines
 ------------------
 
-- Follow semantic versioning: ``MAJOR.MINOR`` or ``MAJOR.MINOR.PATCH``
+- Follow semantic versioning: ``MAJOR.MINOR`` 
 - For upstream project kernels, match their versioning
 - Increment version for any package updates
 - Never modify an existing version in-place

@@ -108,40 +108,6 @@ Stop using any kernel:
 
    ./icrn_manager kernels use none
 
-Managing Your Local Kernels
----------------------------
-
-Remove a kernel completely (files and catalog entry):
-
-.. code-block:: bash
-
-   ./icrn_manager kernels remove <language> <kernel> <version>
-
-Example:
-
-.. code-block:: bash
-
-   ./icrn_manager kernels remove R cowsay 1.0
-
-Clean a kernel entry from your catalog (keeps files):
-
-.. code-block:: bash
-
-   # Remove specific version
-   ./icrn_manager kernels clean <language> <kernel> <version>
-   
-   # Remove all versions of a kernel
-   ./icrn_manager kernels clean <language> <kernel>
-
-Examples:
-
-.. code-block:: bash
-
-   # Clean specific version
-   ./icrn_manager kernels clean R cowsay 1.0
-   
-   # Clean all versions of a kernel
-   ./icrn_manager kernels clean R cowsay
 
 Common Workflows
 ----------------
@@ -185,19 +151,6 @@ Common Workflows
    # Switch to different kernel
    ./icrn_manager kernels use R pecan 1.9
 
-**Scenario 4: Clean slate**
-
-.. code-block:: bash
-
-   # Stop using kernels
-   ./icrn_manager kernels use none
-   
-   # Remove kernel files and entries
-   ./icrn_manager kernels remove R cowsay 1.0
-   
-   # Or just clean catalog entries
-   ./icrn_manager kernels clean R cowsay 1.0
-
 Python Kernel Specific Workflows
 --------------------------------
 
@@ -227,18 +180,6 @@ To remove Python kernels from Jupyter:
    
    # This uses 'jupyter kernelspec uninstall' to remove kernels
 
-**Python Kernel Management**
-
-Python kernels are stored in language-specific directories:
-
-.. code-block:: text
-
-   ~/.icrn/icrn_kernels/
-   ├── r/                    # R kernels
-   │   └── cowsay-1.0/
-   └── python/               # Python kernels
-       └── numpy-1.24.0/
-
 **Verifying Python Kernel Installation**
 
 You can verify that your Python kernel was installed correctly:
@@ -259,7 +200,5 @@ If you encounter issues:
 
 1. **Check your catalog**: Use `./icrn_manager kernels list` to see what kernels you have
 2. **Verify availability**: Use `./icrn_manager kernels available` to see what's in the central catalog
-3. **Clean and retry**: Use `./icrn_manager kernels clean` to remove problematic entries
-4. **Start fresh**: Use `./icrn_manager kernels remove` to completely remove a kernel
 
 For more detailed troubleshooting, see the :doc:`troubleshooting` section. 

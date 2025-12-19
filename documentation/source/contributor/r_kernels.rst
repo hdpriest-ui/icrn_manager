@@ -1,7 +1,7 @@
-R Kernels (Maintainer)
-======================
+R Kernels
+=========
 
-This section provides guidance for maintainers on creating and managing R kernels for the ICRN platform.
+This section provides guidance for creating and managing R kernels for the ICRN platform.
 
 Creating R Kernels
 -----------------
@@ -29,6 +29,7 @@ Before distributing kernels, ensure they:
 - Include all required dependencies
 - Work with the ICRN Jupyter environment
 - Pass validation tests
+- that permissions are set correctly: general users should have read access, while group and owner will need read, write, and execute
 
 .. note::
    Detailed step-by-step instructions for creating R kernels are available in the kernel creation documentation.
