@@ -3,22 +3,6 @@ Usage
 
 This section provides detailed usage examples for the Illinois Computes Library & Kernel Manager.
 
-Initial Setup
--------------
-
-First, initialize the manager with a path to the central repository:
-
-.. code-block:: bash
-
-   ./icrn_manager kernels init /path/to/central/repository
-
-Example for development:
-
-.. code-block:: bash
-
-   ./icrn_manager kernels init /u/hdpriest/icrn_temp_repository
-
-This creates the necessary configuration files and directories in your home directory.
 
 Discovering Available Kernels
 -----------------------------
@@ -166,9 +150,7 @@ Common Workflows
 
 .. code-block:: bash
 
-   # Initialize
-   ./icrn_manager kernels init /path/to/repo
-   
+      
    # See what's available
    ./icrn_manager kernels available
    
@@ -182,9 +164,6 @@ Common Workflows
 
 .. code-block:: bash
 
-   # Initialize
-   ./icrn_manager kernels init /path/to/repo
-   
    # See what's available
    ./icrn_manager kernels available
    
