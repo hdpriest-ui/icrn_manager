@@ -1112,6 +1112,9 @@ function help() # Show a list of functions
 {
     # grep "^function" $0
     echo ""
+    echo "Kernel Information Browser: https://kernels.ncsa.illinois.edu"
+    echo "Documentation: https://ncsa-manager.readthedocs.io/en/latest/index.html"
+    echo ""
     echo "usage: "
     echo " $0 kernels <subcommand>"
     echo "    init"
