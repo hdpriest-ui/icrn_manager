@@ -1,0 +1,13 @@
+# Ensure shell scripts always use LF line endings
+*.sh text eol=lf
+kernel_indexer text eol=lf
+
+# Ensure other text files use LF for consistency in Linux environments
+*.py text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+

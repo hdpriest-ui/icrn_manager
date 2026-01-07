@@ -16,8 +16,9 @@ WORKDIR /app
 # Copy kernel_indexer script from repo root
 COPY kernel_indexer /usr/local/bin/kernel_indexer
 
-# Make kernel_indexer executable
-RUN chmod +x /usr/local/bin/kernel_indexer
+# Fix line endings and make kernel_indexer executable
+RUN sed -i 's/\r$//' /usr/local/bin/kernel_indexer && \
+    chmod +x /usr/local/bin/kernel_indexer
 
 # Copy entrypoint script from kernel-indexer directory
 COPY kernel-indexer/entrypoint.sh /app/entrypoint.sh
