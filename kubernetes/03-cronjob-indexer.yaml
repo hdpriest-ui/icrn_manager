@@ -54,6 +54,8 @@ spec:
               env:
                 - name: KERNEL_ROOT
                   value: "/app/data" # Path where kernels are stored in the NFS mount
+                - name: KERNEL_ROOT_HOST
+                  value: "/sw/icrn/dev/kernels" # Actual host/NFS path for catalog entries
 
               volumeMounts:
                 - name: kernels-data

@@ -15,6 +15,7 @@ DEFAULT_KERNEL_ROOT="/sw/icrn/jupyter/icrn_ncsa_resources/Kernels"
 
 # Environment variables with defaults
 KERNEL_ROOT="${KERNEL_ROOT:-${DEFAULT_KERNEL_ROOT}}"
+KERNEL_ROOT_HOST="${KERNEL_ROOT_HOST:-${KERNEL_ROOT}}"
 OUTPUT_DIR="${OUTPUT_DIR:-${KERNEL_ROOT}}"
 LANGUAGE_FILTER="${LANGUAGE_FILTER:-}"
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
@@ -249,9 +250,9 @@ update_kernel_catalog() {
         # Normalize language name
         local normalized_lang=$(normalize_language "$language")
         
-        # Construct paths
-        local environment_location="${KERNEL_ROOT}/${normalized_lang}/${kernel_name}/${kernel_version}"
-        local manifest_path="${KERNEL_ROOT}/${normalized_lang}/${kernel_name}/${kernel_version}/package_manifest.json"
+        # Construct paths using host path instead of container path
+        local environment_location="${KERNEL_ROOT_HOST}/${normalized_lang}/${kernel_name}/${kernel_version}"
+        local manifest_path="${KERNEL_ROOT_HOST}/${normalized_lang}/${kernel_name}/${kernel_version}/package_manifest.json"
         
         log_debug "Processing kernel: ${normalized_lang}/${kernel_name}/${kernel_version}"
         
@@ -328,6 +329,7 @@ update_kernel_catalog() {
 main() {
     log_info "Starting kernel indexer container"
     log_info "KERNEL_ROOT: ${KERNEL_ROOT}"
+    log_info "KERNEL_ROOT_HOST: ${KERNEL_ROOT_HOST}"
     log_info "OUTPUT_DIR: ${OUTPUT_DIR}"
     if [ -n "${LANGUAGE_FILTER}" ]; then
         log_info "LANGUAGE_FILTER: ${LANGUAGE_FILTER}"
