@@ -312,6 +312,10 @@ update_kernel_catalog() {
         log_info "Catalog updated: ${catalog_file}"
     fi
     
+    # Set permissions: user+group read/write, others read-only
+    chmod 664 "${catalog_file}"
+    log_debug "Set catalog file permissions to 664 (rw-rw-r--): ${catalog_file}"
+    
     log_info "Catalog update completed successfully"
     log_info "  Processed kernels: ${kernel_count}"
     log_info "  Updated entries: ${updated_count}"

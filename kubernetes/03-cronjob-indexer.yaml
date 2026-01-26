@@ -42,7 +42,7 @@ spec:
           containers:
             - name: kernel-indexer
               image: hdpriest0uiuc/icrn-kernel-indexer:latest # Update with your registry/tag
-              imagePullPolicy: IfNotPresent
+              imagePullPolicy: Always
               securityContext:
                 allowPrivilegeEscalation: false
                 runAsNonRoot: true
