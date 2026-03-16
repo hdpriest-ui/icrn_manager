@@ -1,0 +1,18 @@
+{{- if not .Values.persistence.indexFiles.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-indexfiles-pvc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "icrn.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.persistence.indexFiles.storageClass }}
+  storageClassName: {{ .Values.persistence.indexFiles.storageClass }}
+  {{- end }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.persistence.indexFiles.size }}
+{{- end }}

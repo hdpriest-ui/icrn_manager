@@ -66,12 +66,29 @@ R Kernels
 Python Kernels
 ~~~~~~~~~~~~~~
 
+Python kernels must be conda environments installed directly at the versioned
+directory. The ``bin/activate`` script must exist at that path — ``icrn_manager``
+uses it to validate the environment during ``kernels get`` and to enter it during
+``kernels use``. A bare virtualenv is not sufficient.
+
+``ipykernel`` must be installed in the environment. ``icrn_manager kernels use``
+runs ``python -m ipykernel install`` from within the activated environment to
+register the kernel with JupyterHub; if ``ipykernel`` is absent the step will
+fail.
+
 .. code-block:: text
 
    <kernel_root>/Python/<kernel_name>/<version>/
+   ├── bin/
+   │   ├── activate        ← required; validates and activates the environment
+   │   ├── python
+   │   └── ...
+   ├── conda-meta/
    ├── lib/
    │   └── python3.x/
    │       └── site-packages/
+   │           ├── ipykernel/   ← required for kernels use
+   │           └── ...
    └── package_manifest.json
 
 Package Manifest Schema

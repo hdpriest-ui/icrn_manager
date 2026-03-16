@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: icrn-kernel-indexer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "icrn.labels" . | nindent 4 }}
+    component: kernel-indexer
+spec:
+  schedule: {{ .Values.indexer.schedule | quote }}
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 604800
+      template:
+        metadata:
+          labels:
+            {{- include "icrn.labels" . | nindent 12 }}
+            component: kernel-indexer
+        spec:
+          {{- include "icrn.indexerPodSpec" . | nindent 10 }}

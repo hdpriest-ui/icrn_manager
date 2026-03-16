@@ -1,0 +1,19 @@
+# ICRN Kernel Manager — Production Environment Values
+#
+# Copy this file to values.prod.yaml and fill in your values.
+# values.prod.yaml is gitignored and should never be committed.
+
+image:
+  registry: ""
+
+persistence:
+  kernels:
+    existingClaim: ""     # PVC name created by cluster admin for /sw/icrn/prod
+    hostPath: ""          # e.g. /sw/icrn/prod/kernels
+
+  indexFiles:
+    existingClaim: ""     # leave empty to create a new PVC
+    storageClass: ""      # storage class to use if not using existingClaim
+
+ingress:
+  hostname: ""

@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: icrn-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "icrn.labels" . | nindent 4 }}
+    app: icrn-web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      app: icrn-web
+  template:
+    metadata:
+      labels:
+        app: icrn-web
+        {{- include "icrn.labels" . | nindent 8 }}
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: {{ include "icrn.image" (dict "root" . "image" .Values.image.webserver) }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: COLLATED_MANIFESTS_PATH
+              value: "/app/data/collated_manifests.json"
+            - name: PACKAGE_INDEX_PATH
+              value: "/app/data/package_index.json"
+            - name: WORKERS
+              value: {{ .Values.web.workers | quote }}
+          volumeMounts:
+            - name: index-files
+              mountPath: /app/data
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+      volumes:
+        - name: index-files
+          persistentVolumeClaim:
+            claimName: {{ include "icrn.indexFilesPvcName" . }}

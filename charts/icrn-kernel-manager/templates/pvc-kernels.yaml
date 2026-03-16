@@ -1,0 +1,18 @@
+{{- if not .Values.persistence.kernels.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-kernels-pvc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "icrn.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.persistence.kernels.storageClass }}
+  storageClassName: {{ .Values.persistence.kernels.storageClass }}
+  {{- end }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.persistence.kernels.size }}
+{{- end }}

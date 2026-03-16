@@ -1,0 +1,6 @@
+apiVersion: v2
+name: icrn-kernel-manager
+description: ICRN Kernel Manager — web catalog and indexer
+type: application
+version: 0.1.0
+appVersion: "latest"

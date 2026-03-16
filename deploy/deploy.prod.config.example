@@ -1,0 +1,23 @@
+# ICRN Kernel Manager — Production Deploy Configuration
+#
+# Copy this file to deploy/deploy.prod.config and fill in your values.
+# deploy.prod.config is gitignored and should never be committed.
+
+# ── Campus cluster ────────────────────────────────────────────────────────
+# Destination path for CLI scripts on the campus cluster.
+# The --scripts phase prints curl commands to run manually over SSH.
+CC_BIN_PATH=
+
+# ── Docker Hub ────────────────────────────────────────────────────────────
+DOCKER_REGISTRY=
+IMAGE_TAG=latest
+
+# ── Kubernetes ────────────────────────────────────────────────────────────
+# Run `kubectl config get-contexts` to list available context names.
+KUBECTL_CONTEXT=
+NAMESPACE=kernels
+INGRESS_URL=
+
+# ── Git branch ────────────────────────────────────────────────────────────
+# Scripts are only available on main after a PR merge.
+DEPLOY_BRANCH=main

@@ -1,4 +1,9 @@
+deploy/deploy.*.config
+deploy/urls.md
+notes.md
 vhs
 vhs_install/**
 documentation/icrn_manager_docs/_build/**
 **.sif
+charts/icrn-kernel-manager/values.dev.yaml
+charts/icrn-kernel-manager/values.prod.yaml

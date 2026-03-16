@@ -386,23 +386,23 @@ function kernels__use() # use a kernel which is already checked out
                     display_name="${targetname} ${version}"
                     
                     # Check if kernel already exists
-                    if jupyter kernelspec list 2>/dev/null | grep -q "^$kernel_name\$"; then
+                    if jupyter kernelspec list 2>/dev/null | awk '{print $1}' | grep -qx "$kernel_name"; then
                         echo "Kernel $kernel_name already exists. Removing..."
                         jupyter kernelspec uninstall -y "$kernel_name" 2>/dev/null || echo "Failed to remove existing kernel"
                     fi
-                    
+
                     # Activate the conda environment and install the kernel
                     echo "Installing Python kernel: $kernel_name"
                     source "$absolute_path/bin/activate"
-                    
+
                     # Install the kernel
-                    python -m ipykernel install --user --name "$kernel_name" --display-name="$display_name" 2>/dev/null
-                    
-                    # Deactivate the environment
-                    source "$absolute_path/bin/deactivate"
-                    
-                    echo "Python kernel installation complete."
-                    echo "Kernel '$kernel_name' is now available in Jupyter."
+                    if python -m ipykernel install --user --name "$kernel_name" --display-name="$display_name"; then
+                        echo "Python kernel installation complete."
+                        echo "Kernel '$kernel_name' is now available in Jupyter."
+                    else
+                        echo "ERROR: ipykernel install failed for '$kernel_name'. Ensure ipykernel is installed in the conda environment at $absolute_path"
+                        exit 1
+                    fi
                 else
                     echo "Path could not be found. There is a problem with your user catalog."
                     echo "Consider cleaning the entry in your catalog via: ./icrn_manager kernels clean $language $targetname $version"

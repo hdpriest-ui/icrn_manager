@@ -1,0 +1,56 @@
+image:
+  registry: ""
+  webserver:
+    repository: icrn-kernel-webserver
+    tag: latest
+  indexer:
+    repository: icrn-kernel-indexer
+    tag: latest
+
+persistence:
+  # NFS volume shared with campus cluster (kernel environments + bin scripts).
+  # This storage is pre-provisioned by the cluster administrator.
+  # Provide existingClaim with the name of that PVC; the chart will not create one.
+  # If existingClaim is empty, a PVC is created using storageClass (or the cluster default).
+  kernels:
+    existingClaim: ""
+    storageClass: ""
+    size: 500Gi
+    hostPath: ""          # KERNEL_ROOT_HOST — path as seen from campus cluster,
+                          # written into catalog entries by the indexer
+
+  # Shared volume for index files (collated_manifests.json, package_index.json,
+  # icrn_kernel_catalog.json). Accessed by the indexer (RW) and web app (RO).
+  # Any RWX-capable storage works — does not need to be on the campus cluster NFS.
+  indexFiles:
+    existingClaim: ""
+    storageClass: ""
+    size: 10Gi
+
+ingress:
+  className: traefik
+  hostname: ""
+  tlsSecretName: icrn-web-tls
+
+web:
+  replicas: 1
+  workers: 4
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+indexer:
+  schedule: "0 * * * *"
+  fsGroup: 55311
+  runOnDeploy: true
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 500m
+    limits:
+      memory: 1Gi
+      cpu: 1000m

@@ -37,7 +37,7 @@ icrn_kernels="icrn_kernels"
 ICRN_BASE=${ICRN_BASE:-${HOME}/${icrn_base}}
 ICRN_KERNEL_BASE=${ICRN_KERNEL_BASE:-${ICRN_BASE}/${icrn_kernels}}
 ICRN_USER_CATALOG=${ICRN_USER_CATALOG:-${ICRN_KERNEL_BASE}/user_catalog.json}
-ICRN_KERNEL_REPOSITORY="/u/hdpriest/icrn_temp_repository"
+ICRN_KERNEL_REPOSITORY=${ICRN_KERNEL_REPOSITORY:-""}
 ICRN_R_KERNELS=${ICRN_KERNEL_REPOSITORY}"/R/"
 ICRN_KERNEL_CATALOG=${ICRN_KERNEL_REPOSITORY}"/icrn_kernel_catalog.json"
 

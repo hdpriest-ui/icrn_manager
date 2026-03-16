@@ -1,0 +1,19 @@
+# ICRN Kernel Manager — Dev Environment Values
+#
+# Copy this file to values.dev.yaml and fill in your values.
+# values.dev.yaml is gitignored and should never be committed.
+
+image:
+  registry: ""
+
+persistence:
+  kernels:
+    existingClaim: ""     # PVC name created by cluster admin for
+    hostPath: ""          # e.g.
+
+  indexFiles:
+    existingClaim: ""     # leave empty to create a new PVC
+    storageClass: ""      # storage class to use if not using existingClaim
+
+ingress:
+  hostname: ""
